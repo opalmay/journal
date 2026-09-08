@@ -44,6 +44,25 @@ app and falls back to `index.html` so client-side routes survive a reload.
 Set `ANTHROPIC_API_KEY` to turn on AI titles and summaries. Without it,
 `/api/settings` reports `aiEnabled: false` and no jobs run.
 
+## Installing it as an app
+
+The web app is a PWA: on a deployed instance (HTTPS is required — `localhost`
+also counts) the browser offers *Install* / *Add to Home Screen*, and it then
+launches without browser chrome, with its own icon and the Macchiato base
+colour as the system theme.
+
+The service worker caches **the app shell and static assets only**. Nothing
+under `/api` is ever stored. That is a deliberate trade: `CacheStorage`
+outlives a logged-out session, so caching entries would leave a readable copy
+of the journal on any device it was opened on. Offline therefore gives you the
+app, not your data.
+
+Icons are generated from code rather than committed as opaque binaries:
+
+```bash
+node scripts/generate-icons.mjs
+```
+
 ## The ring webhook
 
 `POST /api/webhooks/ring`, `multipart/form-data`, authenticated with the shared

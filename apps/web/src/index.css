@@ -71,6 +71,18 @@ body {
   outline-offset: 2px;
 }
 
+/*
+ * Installed on iOS the app draws under the status bar and home indicator, so
+ * the sticky header and the page bottom have to pay the insets themselves.
+ */
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem);
+}
+
 /* The browser's default audio player is near-black on a dark ground. */
 audio {
   filter: invert(0.92) hue-rotate(180deg);

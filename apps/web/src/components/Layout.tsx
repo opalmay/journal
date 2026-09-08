@@ -23,7 +23,7 @@ export function Layout() {
 
   return (
     <div className="min-h-full">
-      <header className="sticky top-0 z-10 border-b border-surface1 bg-mantle/85 backdrop-blur">
+      <header className="safe-top sticky top-0 z-10 border-b border-surface1 bg-mantle/85 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center gap-1 px-4 py-3">
           <NavLink to="/" className="mr-3 text-sm font-semibold tracking-tight text-mauve">
             journal
@@ -52,7 +52,7 @@ export function Layout() {
           </button>
         </div>
       </header>
-      <main className="mx-auto max-w-3xl px-4 py-6">
+      <main className="safe-bottom mx-auto max-w-3xl px-4 py-6">
         <Outlet />
       </main>
     </div>

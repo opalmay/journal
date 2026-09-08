@@ -1,0 +1,22 @@
+{
+  "name": "Journal",
+  "short_name": "Journal",
+  "description": "A private record of days — entries, tags, mood, and AI-written summaries.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#24273a",
+  "theme_color": "#24273a",
+  "categories": ["lifestyle", "productivity"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Today", "url": "/" },
+    { "name": "Calendar", "url": "/calendar" },
+    { "name": "Search", "url": "/search" }
+  ]
+}
