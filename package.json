@@ -1,0 +1,19 @@
+{
+  "name": "journal",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev": "concurrently -n api,web -c mauve,blue \"npm run -w @journal/api dev\" \"npm run -w @journal/web dev\"",
+    "build": "npm run -w @journal/shared build && npm run -w @journal/api build && npm run -w @journal/web build",
+    "start": "npm run -w @journal/api start",
+    "test": "npm run -w @journal/api test",
+    "typecheck": "tsc -b packages/shared apps/api apps/web",
+    "db:generate": "npm run -w @journal/api db:generate",
+    "hash-password": "npm run -w @journal/api hash-password"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  }
+}

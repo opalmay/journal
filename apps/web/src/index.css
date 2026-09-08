@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+/*
+ * Catppuccin Macchiato. The app ships this one dark palette rather than a
+ * half-built light mode; every colour in the UI comes from a token here.
+ */
+@theme {
+  --color-rosewater: #f4dbd6;
+  --color-flamingo: #f0c6c6;
+  --color-pink: #f5bde6;
+  --color-mauve: #c6a0f6;
+  --color-red: #ed8796;
+  --color-maroon: #ee99a0;
+  --color-peach: #f5a97f;
+  --color-yellow: #eed49f;
+  --color-green: #a6da95;
+  --color-teal: #8bd5ca;
+  --color-sky: #91d7e3;
+  --color-sapphire: #7dc4e4;
+  --color-blue: #8aadf4;
+  --color-lavender: #b7bdf8;
+
+  --color-text: #cad3f5;
+  --color-subtext1: #b8c0e0;
+  --color-subtext0: #a5adcb;
+  --color-overlay2: #939ab7;
+  --color-overlay1: #8087a2;
+  --color-overlay0: #6e738d;
+  --color-surface2: #5b6078;
+  --color-surface1: #494d64;
+  --color-surface0: #363a4f;
+  --color-base: #24273a;
+  --color-mantle: #1e2030;
+  --color-crust: #181926;
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, "JetBrains Mono", "Fira Code", SFMono-Regular, Menlo, monospace;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-base);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbars in the palette rather than the browser's default grey. */
+* {
+  scrollbar-color: var(--color-surface1) transparent;
+  scrollbar-width: thin;
+}
+
+::selection {
+  background: var(--color-surface2);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-lavender);
+  outline-offset: 2px;
+}
+
+/* The browser's default audio player is near-black on a dark ground. */
+audio {
+  filter: invert(0.92) hue-rotate(180deg);
+  border-radius: 9999px;
+}
