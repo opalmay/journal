@@ -145,7 +145,7 @@ Useful afterwards:
 ```bash
 fly logs                          # includes the AI worker's failures
 fly ssh console -C "ls /data/media"
-fly volumes snapshots list journal_data
+fly volumes snapshots list <vol_id>  # id from `fly volumes list`, not the name
 fly scale memory 1024             # if 512MB turns out to be tight
 ```
 
@@ -155,12 +155,29 @@ their five-minute debounce until something else wakes the Machine (they are
 queued in SQLite, so they run late rather than being lost). To enable it, set
 `auto_stop_machines = "stop"` and `min_machines_running = 0`.
 
-**Backups.** Fly snapshots volumes daily with short default retention. For
-anything you would mind losing, pull a copy down yourself:
+**Backups.** Fly snapshots volumes daily, keeping 5 days by default. Raise it
+to the 60-day maximum; snapshots are incremental, so a journal this size stays
+inside the free snapshot storage:
 
 ```bash
-fly ssh console -C "sqlite3 /data/journal.db '.backup /data/backup.db'"
-fly sftp get /data/backup.db
+fly volumes update <vol_id> --snapshot-retention 60
+```
+
+Snapshots live in the same Fly account as the app. For a copy outside it, pull
+the database and media down yourself. The runtime image has no `sqlite3` CLI,
+so the copy goes through `node:sqlite`; `VACUUM INTO` stays consistent while
+the app keeps writing:
+
+```bash
+fly ssh console
+# on the Machine:
+node -e "new (require('node:sqlite').DatabaseSync)('/data/journal.db').exec(\"VACUUM INTO '/data/backup.db'\")"
+tar czf /data/media.tgz -C /data media
+exit
+
+fly sftp get /data/backup.db ./journal-$(date +%F).db
+fly sftp get /data/media.tgz ./media-$(date +%F).tgz
+fly ssh console -C "rm /data/backup.db /data/media.tgz"
 ```
 
 ## Tests
