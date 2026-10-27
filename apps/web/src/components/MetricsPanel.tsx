@@ -148,7 +148,16 @@ export function MetricsPanel({
       <Row label="energy" ai={ai("energy")}>
         <Segmented value={m.energy} options={ENERGY} onChange={(v) => set("energy", v)} />
       </Row>
-      <Row label="sleep" ai={ai("sleepHours") || ai("sleepQuality") || ai("sleepWakings")}>
+      <Row
+        label="sleep"
+        ai={
+          ai("sleepHours") ||
+          ai("sleepQuality") ||
+          ai("sleepWakings") ||
+          ai("napHours") ||
+          ai("napTimes")
+        }
+      >
         <CommitInput
           type="number"
           step={0.5}
@@ -171,18 +180,16 @@ export function MetricsPanel({
             onCommit={(v) => set("sleepWakings", toNumber(v))}
           />
         </label>
-      </Row>
-      <Row label="nap" ai={ai("napHours") || ai("napTimes")}>
-        <CommitInput
-          type="number"
-          step={0.5}
-          value={m.napHours}
-          placeholder="h"
-          className="w-16"
-          onCommit={(v) => set("napHours", toNumber(v))}
-        />
         <label className="flex items-center gap-1 text-xs text-overlay1">
-          at
+          nap
+          <CommitInput
+            type="number"
+            step={0.5}
+            value={m.napHours}
+            placeholder="h"
+            className="w-14"
+            onCommit={(v) => set("napHours", toNumber(v))}
+          />
           <CommitInput
             value={m.napTimes}
             placeholder="13:00–14:00"
