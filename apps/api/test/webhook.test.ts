@@ -1,10 +1,17 @@
 import fs from "node:fs";
-import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { makeContext, multipart, TEST_WEBHOOK_TOKEN, type TestContext } from "./helpers.js";
 
 const AUDIO = Buffer.from("fake m4a bytes, but real enough for a byte count");
 const RECORDED_AT = Date.parse("2026-09-08T10:15:00Z");
+
+/** Every stored file, wherever its upload month put it. */
+function mediaFiles(mediaDir: string): string[] {
+  return fs
+    .readdirSync(mediaDir, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name);
+}
 
 function ringBody(overrides: { transcription?: string; recordedAt?: number } = {}, withAudio = true) {
   return multipart(
@@ -54,7 +61,7 @@ describe("POST /api/webhooks/ring", () => {
     expect(record.media[0].kind).toBe("audio");
     expect(record.media[0].sizeBytes).toBe(AUDIO.length);
 
-    const files = fs.readdirSync(path.join(ctx.config.mediaDir, "2026", "09"));
+    const files = mediaFiles(ctx.config.mediaDir);
     expect(files).toHaveLength(1);
     expect(files[0]).toMatch(/\.m4a$/);
     expect(files[0]).not.toMatch(/\.part$/);
@@ -104,7 +111,7 @@ describe("POST /api/webhooks/ring", () => {
     expect(list.records).toHaveLength(1);
 
     // The replayed upload must not leave an orphan file behind either.
-    expect(fs.readdirSync(path.join(ctx.config.mediaDir, "2026", "09"))).toHaveLength(1);
+    expect(mediaFiles(ctx.config.mediaDir)).toHaveLength(1);
   });
 
   it("accepts the token as a query parameter", async () => {
