@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
+import { DayMetrics, Mood, type AiField } from "@journal/shared";
 
 import { DEFAULT_DAY_MODEL, DEFAULT_TITLE_MODEL } from "./models.js";
 
@@ -19,10 +20,14 @@ export interface RecordTitleResult {
   title: string;
 }
 
+/** What the day's entries say about each asked-for field; null when they don't. */
+export type ExtractedMetrics = Partial<Record<AiField, number | string | null>>;
+
 export interface DaySummaryResult {
   title: string;
   summary: string;
   tags: string[];
+  metrics: ExtractedMetrics;
 }
 
 export interface Summarizer {
@@ -36,13 +41,30 @@ export interface DaySummaryInput {
   /** One line per record, already in time order: `HH:mm — text`. */
   lines: string[];
   existingTags: string[];
+  /** Fields to extract. The user's own values are left out and given as context. */
+  extract: AiField[];
+  userMetrics: Partial<Record<AiField, number | string>>;
 }
 
 const RecordTitleSchema = z.object({ title: z.string().min(1).max(120) });
+/**
+ * An out-of-range metric is dropped rather than failing the whole summary:
+ * a missing value is flagged to the author, a lost summary is not.
+ */
+const ExtractedMetricsSchema = z.object(
+  Object.fromEntries(
+    Object.entries(DayMetrics.extend({ mood: Mood.nullable() }).shape).map(([field, schema]) => [
+      field,
+      (schema as z.ZodTypeAny).optional().catch(null),
+    ]),
+  ),
+);
+
 const DaySummarySchema = z.object({
   title: z.string().min(1).max(120),
   summary: z.string().min(1).max(4000),
   tags: z.array(z.string()).max(8),
+  metrics: ExtractedMetricsSchema.default({}),
 });
 
 const RECORD_TITLE_JSON_SCHEMA = {
@@ -54,20 +76,78 @@ const RECORD_TITLE_JSON_SCHEMA = {
   additionalProperties: false,
 } as const;
 
-const DAY_SUMMARY_JSON_SCHEMA = {
-  type: "object",
-  properties: {
-    title: { type: "string", description: "At most 8 words naming the day, no trailing period." },
-    summary: { type: "string", description: "Two to four sentences about the day." },
-    tags: {
-      type: "array",
-      items: { type: "string" },
-      description: "Up to 6 lowercase, hyphenated topic tags.",
+const nullable = (schema: Record<string, unknown>, description: string) => ({
+  anyOf: [schema, { type: "null" }],
+  description,
+});
+
+/** How each field is asked for. The descriptions carry the scales. */
+const METRIC_JSON_SCHEMA: Record<AiField, Record<string, unknown>> = {
+  mood: nullable(
+    { type: "integer", enum: [1, 2, 3, 4, 5] },
+    "Overall mood, 1 rough, 2 low, 3 even, 4 good, 5 great.",
+  ),
+  energy: nullable(
+    { type: "integer", enum: [1, 2, 3, 4, 5] },
+    "Energy, 1 exhausted to 5 very high. 'energy high' is 4, 'wiped out' is 1.",
+  ),
+  sleepHours: nullable(
+    { type: "number" },
+    "Hours slept the night that ended this day, only if a duration was given.",
+  ),
+  sleepQuality: nullable(
+    { type: "string", enum: ["poor", "ok", "good"] },
+    "Quality of last night's sleep. 'slept badly' is poor.",
+  ),
+  appetite: nullable({ type: "string", enum: ["low", "normal", "high"] }, "Appetite."),
+  social: nullable(
+    { type: "string", enum: ["none", "some", "a_lot"] },
+    "Contact with other people: none, some, or a_lot.",
+  ),
+  cycleDay: nullable(
+    { type: "integer" },
+    "Menstrual cycle day, 1 being the first day of a period. 'period started today' is 1.",
+  ),
+  caffeine: nullable({ type: "integer" }, "Number of caffeinated drinks."),
+  alcohol: nullable({ type: "integer" }, "Number of alcoholic drinks."),
+  exercise: nullable(
+    { type: "string" },
+    "Exercise done, a few words in the author's terms, e.g. '30 min run'.",
+  ),
+  intake: nullable(
+    { type: "string" },
+    "Medication, supplements or other substances taken, comma separated.",
+  ),
+};
+
+function daySummaryJsonSchema(extract: AiField[]): Record<string, unknown> {
+  return {
+    type: "object",
+    properties: {
+      title: { type: "string", description: "At most 8 words naming the day, no trailing period." },
+      summary: { type: "string", description: "Two to four sentences about the day." },
+      tags: {
+        type: "array",
+        items: { type: "string" },
+        description: "Up to 6 lowercase, hyphenated topic tags.",
+      },
+      metrics: {
+        type: "object",
+        properties: Object.fromEntries(extract.map((f) => [f, METRIC_JSON_SCHEMA[f]])),
+        required: extract,
+        additionalProperties: false,
+      },
     },
-  },
-  required: ["title", "summary", "tags"],
-  additionalProperties: false,
-} as const;
+    required: ["title", "summary", "tags", "metrics"],
+    additionalProperties: false,
+  };
+}
+
+const METRICS_INSTRUCTIONS = `Also fill in "metrics" from what the entries say. Use null for anything
+not stated or clearly implied; never guess or infer from tone alone, since a
+missing value is flagged to the author and a wrong one misleads them. Map
+spoken words onto the scales given. If the day contradicts itself, the latest
+entry wins. Sleep means the night that ended on this day.`;
 
 const SYSTEM = `You are the summarizer inside someone's private journal.
 
@@ -180,19 +260,25 @@ export class ClaudeSummarizer implements Summarizer {
     const existing = input.existingTags.length
       ? `\nTags the author already put on this day: ${input.existingTags.join(", ")}. Do not repeat them.`
       : "";
+    const known = Object.entries(input.userMetrics).filter(([field]) => field !== "mood");
     const prompt = [
       `Summarize this journal day: ${input.date}.`,
       `Mood: ${mood}.${existing}`,
+      ...(known.length
+        ? [`Recorded by the author: ${known.map(([f, v]) => `${f} ${v}`).join(", ")}.`]
+        : []),
+      "",
+      METRICS_INSTRUCTIONS,
       "",
       "Entries, in order:",
       ...input.lines,
     ].join("\n");
 
-    return this.ask(
-      prompt,
-      DAY_SUMMARY_JSON_SCHEMA as unknown as Record<string, unknown>,
-      DaySummarySchema,
-      { model: this.dayModel, effort: "medium", maxTokens: 16_000 },
-    );
+    const result = await this.ask(prompt, daySummaryJsonSchema(input.extract), DaySummarySchema, {
+      model: this.dayModel,
+      effort: "medium",
+      maxTokens: 16_000,
+    });
+    return { ...result, metrics: result.metrics as ExtractedMetrics };
   }
 }

@@ -1,9 +1,11 @@
 import type { Db } from "./index.js";
 import { transaction } from "./index.js";
 import { uuidv7, randomUUID } from "../ids.js";
-import { dateKeyFromTimestamp, normalizeTag } from "@journal/shared";
+import { METRIC_FIELDS, dateKeyFromTimestamp, normalizeTag } from "@journal/shared";
 import type {
+  AiField,
   DayDTO,
+  DayMetrics,
   DayDetailDTO,
   MediaDTO,
   MediaKind,
@@ -20,6 +22,18 @@ interface DayRow {
   summary: string | null;
   note: string | null;
   mood: number | null;
+  energy: number | null;
+  sleep_hours: number | null;
+  sleep_quality: string | null;
+  appetite: string | null;
+  social: string | null;
+  cycle_day: number | null;
+  caffeine: number | null;
+  alcohol: number | null;
+  exercise: string | null;
+  intake: string | null;
+  user_fields: string;
+  metrics_extracted_at: number | null;
   ai_generated_at: number | null;
   created_at: number;
   updated_at: number;
@@ -61,18 +75,110 @@ export function ensureDay(db: Db, date: string, now = Date.now()): void {
   ).run(date, now, now);
 }
 
-function toDayDTO(row: DayRow, tags: string[], recordCount: number): DayDTO {
+/** The `days` column behind each metric. */
+const METRIC_COLUMNS: Record<keyof DayMetrics, keyof DayRow & string> = {
+  energy: "energy",
+  sleepHours: "sleep_hours",
+  sleepQuality: "sleep_quality",
+  appetite: "appetite",
+  social: "social",
+  cycleDay: "cycle_day",
+  caffeine: "caffeine",
+  alcohol: "alcohol",
+  exercise: "exercise",
+  intake: "intake",
+};
+
+const AI_COLUMNS: Record<AiField, keyof DayRow & string> = { mood: "mood", ...METRIC_COLUMNS };
+export const AI_FIELDS = Object.keys(AI_COLUMNS) as AiField[];
+
+/** A derived cycle day only counts on this long from the last known one. */
+const CYCLE_DERIVE_MAX_DAYS = 45;
+
+function userFields(row: DayRow): Set<AiField> {
+  return new Set(JSON.parse(row.user_fields) as AiField[]);
+}
+
+function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+}
+
+/** Fields the day summary job is asked to look for, given the preferences. */
+export function extractableFields(prefs: Preferences): AiField[] {
+  return AI_FIELDS.filter((f) => f !== "cycleDay" || prefs.trackCycle);
+}
+
+function toDayDTO(
+  row: DayRow,
+  tags: string[],
+  recordCount: number,
+  prefs: Preferences,
+  derivedCycleDay: number | null = null,
+): DayDTO {
+  const metrics = Object.fromEntries(
+    METRIC_FIELDS.map((f) => [f, row[METRIC_COLUMNS[f]]]),
+  ) as DayMetrics;
+  if (!prefs.trackCycle) metrics.cycleDay = null;
+  const cycleDayDerived = metrics.cycleDay === null && derivedCycleDay !== null;
+  if (cycleDayDerived) metrics.cycleDay = derivedCycleDay;
+
+  const owned = userFields(row);
+  const extracted = row.metrics_extracted_at !== null;
+  const asked = extractableFields(prefs);
   return {
     date: row.date,
     title: row.title,
     summary: row.summary,
     note: row.note,
     mood: row.mood as DayDTO["mood"],
+    metrics,
+    aiFields: extracted
+      ? asked.filter((f) => !owned.has(f) && row[AI_COLUMNS[f]] !== null)
+      : [],
+    metricsMissing: extracted
+      ? asked.filter(
+          (f) =>
+            !owned.has(f) &&
+            row[AI_COLUMNS[f]] === null &&
+            !(f === "cycleDay" && cycleDayDerived),
+        )
+      : [],
+    cycleDayDerived,
     tags,
     recordCount,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+/**
+ * Counts the cycle on from the latest earlier day with a known cycle day, for
+ * days that have none of their own.
+ */
+function derivedCycleDays(db: Db, rows: DayRow[], prefs: Preferences): Map<string, number> {
+  const out = new Map<string, number>();
+  const pending = rows.filter((r) => r.cycle_day === null);
+  if (!prefs.trackCycle || pending.length === 0) return out;
+  const dates = pending.map((r) => r.date).sort();
+  const anchors = db
+    .prepare(
+      `SELECT date, cycle_day FROM days
+        WHERE cycle_day IS NOT NULL AND date < ? AND date >= date(?, ?)
+        ORDER BY date`,
+    )
+    .all(dates[dates.length - 1]!, dates[0]!, `-${CYCLE_DERIVE_MAX_DAYS} days`) as unknown as {
+    date: string;
+    cycle_day: number;
+  }[];
+  for (const date of dates) {
+    let anchor: (typeof anchors)[number] | undefined;
+    for (const a of anchors) if (a.date < date) anchor = a;
+    if (!anchor) continue;
+    const gap = daysBetween(anchor.date, date);
+    const day = anchor.cycle_day + gap;
+    if (gap < CYCLE_DERIVE_MAX_DAYS && day <= 60) out.set(date, day);
+  }
+  return out;
 }
 
 export function listDays(db: Db, from: string, to: string): DayDTO[] {
@@ -83,19 +189,28 @@ export function listDays(db: Db, from: string, to: string): DayDTO[] {
   const dates = rows.map((r) => r.date);
   const tags = tagsByDay(db, dates);
   const counts = recordCountsByDay(db, dates);
-  return rows.map((r) => toDayDTO(r, tags.get(r.date) ?? [], counts.get(r.date) ?? 0));
+  const prefs = getPreferences(db);
+  const cycle = derivedCycleDays(db, rows, prefs);
+  return rows.map((r) =>
+    toDayDTO(r, tags.get(r.date) ?? [], counts.get(r.date) ?? 0, prefs, cycle.get(r.date)),
+  );
 }
 
 export function getDay(db: Db, date: string): DayDTO | null {
-  const row = db.prepare(`SELECT * FROM days WHERE date = ?`).get(date) as unknown as
-    | DayRow
-    | undefined;
+  const row = getDayRow(db, date);
   if (!row) return null;
+  const prefs = getPreferences(db);
   return toDayDTO(
     row,
     tagsByDay(db, [date]).get(date) ?? [],
     recordCountsByDay(db, [date]).get(date) ?? 0,
+    prefs,
+    derivedCycleDays(db, [row], prefs).get(date),
   );
+}
+
+function getDayRow(db: Db, date: string): DayRow | null {
+  return (db.prepare(`SELECT * FROM days WHERE date = ?`).get(date) as unknown as DayRow) ?? null;
 }
 
 export function getDayDetail(db: Db, date: string): DayDetailDTO | null {
@@ -106,6 +221,7 @@ export function getDayDetail(db: Db, date: string): DayDetailDTO | null {
 
 export interface DayPatch {
   mood?: number | null;
+  metrics?: Partial<DayMetrics>;
   note?: string | null;
   title?: string | null;
   summary?: string | null;
@@ -123,6 +239,21 @@ export function updateDay(db: Db, date: string, patch: DayPatch): DayDTO | null 
         values.push(patch[key] as string | number | null);
       }
     }
+    // Anything the user sets or clears by hand is theirs from then on.
+    const touched: AiField[] = patch.mood !== undefined ? ["mood"] : [];
+    for (const field of METRIC_FIELDS) {
+      const value = patch.metrics?.[field];
+      if (value === undefined) continue;
+      sets.push(`${METRIC_COLUMNS[field]} = ?`);
+      values.push(typeof value === "string" && !value ? null : value);
+      touched.push(field);
+    }
+    if (touched.length > 0) {
+      const owned = userFields(getDayRow(db, date)!);
+      for (const f of touched) owned.add(f);
+      sets.push("user_fields = ?");
+      values.push(JSON.stringify([...owned]));
+    }
     if (sets.length > 0) {
       sets.push("updated_at = ?");
       values.push(Date.now(), date);
@@ -139,6 +270,7 @@ export function pruneEmptyDay(db: Db, date: string): void {
     `DELETE FROM days
       WHERE date = ?
         AND mood IS NULL AND note IS NULL AND title IS NULL AND summary IS NULL
+        AND ${Object.values(METRIC_COLUMNS).map((c) => `${c} IS NULL`).join(" AND ")}
         AND NOT EXISTS (SELECT 1 FROM records WHERE day_date = ?)
         AND NOT EXISTS (SELECT 1 FROM day_tags WHERE day_date = ?)`,
   ).run(date, date, date);
@@ -574,6 +706,73 @@ export function setDaySummary(
     ).run(data.title, data.summary, Date.now(), Date.now(), date);
     addDayTags(db, date, data.tags);
   });
+}
+
+/**
+ * Writes what the day summary job extracted. Fields the user set or cleared by
+ * hand are left alone; every other asked-for field takes the new value, so a
+ * value whose source record was deleted goes away on the next run.
+ */
+export function applyAiMetrics(
+  db: Db,
+  date: string,
+  extracted: Partial<Record<AiField, number | string | null>>,
+  asked: AiField[],
+): void {
+  const row = getDayRow(db, date);
+  if (!row) return;
+  const owned = userFields(row);
+  const sets: string[] = [];
+  const values: (string | number | null)[] = [];
+  for (const field of asked) {
+    if (owned.has(field)) continue;
+    const value = extracted[field] ?? null;
+    sets.push(`${AI_COLUMNS[field]} = ?`);
+    values.push(typeof value === "string" && !value.trim() ? null : value);
+  }
+  sets.push("metrics_extracted_at = ?", "updated_at = ?");
+  values.push(Date.now(), Date.now(), date);
+  db.prepare(`UPDATE days SET ${sets.join(", ")} WHERE date = ?`).run(...values);
+}
+
+/** Fields the user has set or cleared by hand. */
+export function userOwnedFields(db: Db, date: string): AiField[] {
+  const row = getDayRow(db, date);
+  return row ? [...userFields(row)] : [];
+}
+
+/** The values the user set by hand, so the job can read them as context. */
+export function userMetrics(db: Db, date: string): Partial<Record<AiField, number | string>> {
+  const row = getDayRow(db, date);
+  if (!row) return {};
+  const out: Partial<Record<AiField, number | string>> = {};
+  for (const field of userFields(row)) {
+    const value = row[AI_COLUMNS[field]];
+    if (value !== null) out[field] = value as number | string;
+  }
+  return out;
+}
+
+// --- preferences ---------------------------------------------------------
+
+export interface Preferences {
+  trackCycle: boolean;
+}
+
+export function getPreferences(db: Db): Preferences {
+  const row = db.prepare(`SELECT track_cycle FROM preferences WHERE id = 1`).get() as unknown as
+    | { track_cycle: number }
+    | undefined;
+  return { trackCycle: row?.track_cycle === 1 };
+}
+
+export function updatePreferences(db: Db, patch: Partial<Preferences>): Preferences {
+  const next = { ...getPreferences(db), ...patch };
+  db.prepare(
+    `INSERT INTO preferences (id, track_cycle, updated_at) VALUES (1, ?, ?)
+     ON CONFLICT (id) DO UPDATE SET track_cycle = excluded.track_cycle, updated_at = excluded.updated_at`,
+  ).run(next.trackCycle ? 1 : 0, Date.now());
+  return next;
 }
 
 export function storageUsage(db: Db): { files: number; bytes: number } {

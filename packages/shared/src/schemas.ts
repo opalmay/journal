@@ -4,6 +4,35 @@ import { DATE_KEY_RE, normalizeTag } from "./dates.js";
 export const Mood = z.number().int().min(1).max(5);
 export type Mood = z.infer<typeof Mood>;
 
+// --- day metrics ---------------------------------------------------------
+
+export const SleepQuality = z.enum(["poor", "ok", "good"]);
+export type SleepQuality = z.infer<typeof SleepQuality>;
+export const Appetite = z.enum(["low", "normal", "high"]);
+export type Appetite = z.infer<typeof Appetite>;
+export const Social = z.enum(["none", "some", "a_lot"]);
+export type Social = z.infer<typeof Social>;
+
+/** Every dimension of a day besides mood. All optional: most days mention few. */
+export const DayMetrics = z.object({
+  energy: z.number().int().min(1).max(5).nullable(),
+  sleepHours: z.number().min(0).max(24).nullable(),
+  sleepQuality: SleepQuality.nullable(),
+  appetite: Appetite.nullable(),
+  social: Social.nullable(),
+  cycleDay: z.number().int().min(1).max(60).nullable(),
+  caffeine: z.number().int().min(0).max(50).nullable(),
+  alcohol: z.number().int().min(0).max(50).nullable(),
+  exercise: z.string().trim().max(200).nullable(),
+  intake: z.string().trim().max(500).nullable(),
+});
+export type DayMetrics = z.infer<typeof DayMetrics>;
+export type MetricField = keyof DayMetrics;
+export const METRIC_FIELDS = Object.keys(DayMetrics.shape) as MetricField[];
+
+/** Fields the day summary job may fill in: every metric, plus mood. */
+export type AiField = MetricField | "mood";
+
 export const RecordSource = z.enum(["web", "ring", "api"]);
 export type RecordSource = z.infer<typeof RecordSource>;
 
@@ -44,6 +73,7 @@ export const UpdateDayInput = z
     title: z.string().max(200).nullable().optional(),
     summary: z.string().max(10_000).nullable().optional(),
     tags: TagList.optional(),
+    metrics: DayMetrics.partial().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, "no fields to update");
 export type UpdateDayInput = z.input<typeof UpdateDayInput>;
@@ -103,6 +133,13 @@ export interface DayDTO {
   summary: string | null;
   note: string | null;
   mood: Mood | null;
+  metrics: DayMetrics;
+  /** Fields whose value came from the AI rather than the user. */
+  aiFields: AiField[];
+  /** Fields the last extraction looked for and could not find. */
+  metricsMissing: AiField[];
+  /** True when `metrics.cycleDay` was counted on from an earlier day. */
+  cycleDayDerived: boolean;
   tags: string[];
   recordCount: number;
   createdAt: number;

@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { z } from "zod";
 import * as repo from "../db/repo.js";
 import { jobStats } from "../ai/jobs.js";
 
@@ -16,6 +17,12 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
       webhookTokenSet: Boolean(config.WEBHOOK_TOKEN),
       storage: repo.storageUsage(db),
       jobs: jobStats(db),
+      ...repo.getPreferences(db),
     };
+  });
+
+  app.patch("/api/settings", async (request) => {
+    const patch = z.object({ trackCycle: z.boolean().optional() }).strict().parse(request.body);
+    return repo.updatePreferences(app.db, patch);
   });
 }

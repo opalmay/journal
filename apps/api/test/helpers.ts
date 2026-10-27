@@ -5,7 +5,7 @@ import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app.js";
 import { loadConfig, type Config } from "../src/config.js";
 import { hashPassword, SESSION_COOKIE } from "../src/auth.js";
-import type { Summarizer } from "../src/ai/client.js";
+import type { DaySummaryInput, ExtractedMetrics, Summarizer } from "../src/ai/client.js";
 import type { Notification, Notifier } from "../src/reminders/ntfy.js";
 
 export const TEST_PASSWORD = "correct horse battery staple";
@@ -23,16 +23,21 @@ export interface TestContext {
 
 export class FakeSummarizer implements Summarizer {
   recordCalls: string[] = [];
-  dayCalls: unknown[] = [];
+  dayCalls: DaySummaryInput[] = [];
+  /** What the next day summaries report finding in the entries. */
+  metrics: ExtractedMetrics = {};
 
   async recordTitle(text: string) {
     this.recordCalls.push(text);
     return { title: `title for ${text.slice(0, 20)}` };
   }
 
-  async daySummary(input: unknown) {
+  async daySummary(input: DaySummaryInput) {
     this.dayCalls.push(input);
-    return { title: "a day", summary: "things happened", tags: ["generated"] };
+    const metrics = Object.fromEntries(
+      input.extract.map((f) => [f, this.metrics[f] ?? null]),
+    ) as ExtractedMetrics;
+    return { title: "a day", summary: "things happened", tags: ["generated"], metrics };
   }
 }
 

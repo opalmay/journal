@@ -4,6 +4,7 @@ import { addDays } from "@journal/shared";
 import { Composer } from "../components/Composer.js";
 import { RecordCard } from "../components/RecordCard.js";
 import { MoodPicker } from "../components/MoodPicker.js";
+import { AiMark, MetricsPanel } from "../components/MetricsPanel.js";
 import { TagInput } from "../components/TagInput.js";
 import { Button, Card, EmptyState, ErrorNote, Spinner } from "../components/ui.js";
 import { useDay, useRegenerate, useSettings, useTags, useUpdateDay } from "../lib/queries.js";
@@ -73,9 +74,17 @@ export function DayPage() {
         )}
 
         <div className="mt-4 flex flex-col gap-3">
-          <MoodPicker
-            value={data.mood}
-            onChange={(mood) => updateDay.mutate({ date, mood })}
+          <div className="flex items-center gap-2">
+            <MoodPicker
+              value={data.mood}
+              onChange={(mood) => updateDay.mutate({ date, mood })}
+            />
+            {data.aiFields.includes("mood") && <AiMark />}
+          </div>
+          <MetricsPanel
+            day={data}
+            trackCycle={settings?.trackCycle ?? false}
+            onChange={(metrics) => updateDay.mutate({ date, metrics })}
           />
           <TagInput
             value={data.tags}

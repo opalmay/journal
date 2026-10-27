@@ -33,6 +33,18 @@ export function useSettings() {
   return useQuery({ queryKey: keys.settings, queryFn: api.settings });
 }
 
+/** Preferences change what a day shows (the cycle row), so days refetch too. */
+export function useUpdateSettings() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: api.updateSettings,
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: keys.settings });
+      invalidateJournal(client);
+    },
+  });
+}
+
 export function useReminders() {
   return useQuery({ queryKey: keys.reminders, queryFn: api.reminders });
 }

@@ -1,4 +1,4 @@
-import type { DayDTO, DayDetailDTO, RecordDTO, TagDTO } from "@journal/shared";
+import type { DayDTO, DayDetailDTO, DayMetrics, RecordDTO, TagDTO } from "@journal/shared";
 
 export class ApiError extends Error {
   constructor(
@@ -52,6 +52,7 @@ export interface Settings {
   webhookTokenSet: boolean;
   storage: { files: number; bytes: number };
   jobs: Record<string, number>;
+  trackCycle: boolean;
 }
 
 export interface Reminders {
@@ -111,6 +112,7 @@ export const api = {
     date: string,
     patch: {
       mood?: number | null;
+      metrics?: Partial<DayMetrics>;
       note?: string | null;
       title?: string | null;
       tags?: string[];
@@ -121,6 +123,11 @@ export const api = {
 
   tags: () => request<{ tags: TagDTO[] }>("/api/tags"),
   settings: () => request<Settings>("/api/settings"),
+  updateSettings: (patch: { trackCycle?: boolean }) =>
+    request<{ trackCycle: boolean }>("/api/settings", {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
 
   reminders: () => request<Reminders>("/api/reminders"),
   updateReminders: (patch: { enabled?: boolean; time?: string }) =>

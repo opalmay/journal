@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, Card, ErrorNote, Spinner } from "../components/ui.js";
-import { useSettings } from "../lib/queries.js";
+import { useSettings, useUpdateSettings } from "../lib/queries.js";
 import { RemindersCard } from "../components/RemindersCard.js";
 
 function formatBytes(bytes: number): string {
@@ -26,6 +26,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 export function SettingsPage() {
   const { data, isPending, error } = useSettings();
+  const updateSettings = useUpdateSettings();
   const [copied, setCopied] = useState(false);
 
   if (isPending) return <Spinner />;
@@ -69,6 +70,18 @@ export function SettingsPage() {
             </span>
           </Row>
         )}
+        <Row label="Track menstrual cycle">
+          <label className="inline-flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={settings.trackCycle}
+              disabled={updateSettings.isPending}
+              onChange={(e) => updateSettings.mutate({ trackCycle: e.target.checked })}
+              className="accent-mauve"
+            />
+            <span className="text-xs text-overlay1">{settings.trackCycle ? "on" : "off"}</span>
+          </label>
+        </Row>
         <Row label="Max upload">{formatBytes(settings.maxUploadBytes)}</Row>
         <Row label="Stored media">
           {settings.storage.files} files · {formatBytes(settings.storage.bytes)}

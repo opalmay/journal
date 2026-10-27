@@ -3,6 +3,7 @@ import type { Config } from "../config.js";
 import type { Summarizer } from "./client.js";
 import { claimNextJob, completeJob, failJob, requeueStaleJobs, type JobRow } from "./jobs.js";
 import * as repo from "../db/repo.js";
+import { transaction } from "../db/index.js";
 import { timeOfDay } from "@journal/shared";
 
 const POLL_INTERVAL_MS = 2_000;
@@ -86,16 +87,28 @@ export class AiWorker {
       return `${time} — ${body}${tags}`;
     });
 
+    // Only the user's own values are context; anything the job wrote last
+    // time is re-extracted from scratch.
+    const owned = repo.userOwnedFields(this.db, day.date);
+    const userMetrics = repo.userMetrics(this.db, day.date);
+    const extract = repo
+      .extractableFields(repo.getPreferences(this.db))
+      .filter((f) => !owned.includes(f));
     const result = await this.summarizer.daySummary({
       date: day.date,
-      mood: day.mood,
+      mood: typeof userMetrics.mood === "number" ? userMetrics.mood : null,
       lines,
       existingTags: day.tags,
+      extract,
+      userMetrics,
     });
-    repo.setDaySummary(this.db, day.date, {
-      title: result.title.trim(),
-      summary: result.summary.trim(),
-      tags: result.tags,
+    transaction(this.db, () => {
+      repo.setDaySummary(this.db, day.date, {
+        title: result.title.trim(),
+        summary: result.summary.trim(),
+        tags: result.tags,
+      });
+      repo.applyAiMetrics(this.db, day.date, result.metrics, extract);
     });
   }
 }
