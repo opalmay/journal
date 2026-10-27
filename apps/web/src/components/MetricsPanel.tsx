@@ -1,19 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { AiField, DayDTO, DayMetrics } from "@journal/shared";
-
-export const FIELD_LABELS: Record<AiField, string> = {
-  mood: "mood",
-  energy: "energy",
-  sleepHours: "hours slept",
-  sleepQuality: "sleep quality",
-  appetite: "appetite",
-  social: "social contact",
-  cycleDay: "cycle day",
-  caffeine: "caffeine",
-  alcohol: "alcohol",
-  exercise: "exercise",
-  intake: "things taken",
-};
+import { FIELD_LABELS, missingFields } from "../lib/metrics.js";
 
 /** Marks a value the day summary picked up from the entries. */
 export function AiMark() {
@@ -154,14 +141,17 @@ export function MetricsPanel({
   const ai = (field: AiField) => day.aiFields.includes(field);
   const set = <K extends keyof DayMetrics>(field: K, value: DayMetrics[K]) =>
     onChange({ [field]: value } as Partial<DayMetrics>);
-  const missing = day.metricsMissing.filter((f) => f !== "mood" && (trackCycle || f !== "cycleDay"));
+  const missing = missingFields(day, trackCycle);
 
   return (
     <div className="flex flex-col gap-2">
       <Row label="energy" ai={ai("energy")}>
         <Segmented value={m.energy} options={ENERGY} onChange={(v) => set("energy", v)} />
       </Row>
-      <Row label="sleep" ai={ai("sleepHours") || ai("sleepQuality")}>
+      <Row
+        label="sleep"
+        ai={ai("sleepHours") || ai("sleepQuality") || ai("sleepWakings") || ai("napHours")}
+      >
         <CommitInput
           type="number"
           step={0.5}
@@ -175,6 +165,26 @@ export function MetricsPanel({
           options={SLEEP_QUALITY}
           onChange={(v) => set("sleepQuality", v)}
         />
+        <label className="flex items-center gap-1 text-xs text-overlay1">
+          woke
+          <CommitInput
+            type="number"
+            value={m.sleepWakings}
+            className="w-12"
+            onCommit={(v) => set("sleepWakings", toNumber(v))}
+          />
+        </label>
+        <label className="flex items-center gap-1 text-xs text-overlay1">
+          nap
+          <CommitInput
+            type="number"
+            step={0.5}
+            value={m.napHours}
+            placeholder="h"
+            className="w-14"
+            onCommit={(v) => set("napHours", toNumber(v))}
+          />
+        </label>
       </Row>
       <Row label="appetite" ai={ai("appetite")}>
         <Segmented value={m.appetite} options={APPETITE} onChange={(v) => set("appetite", v)} />

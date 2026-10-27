@@ -18,6 +18,8 @@ export const DayMetrics = z.object({
   energy: z.number().int().min(1).max(5).nullable(),
   sleepHours: z.number().min(0).max(24).nullable(),
   sleepQuality: SleepQuality.nullable(),
+  sleepWakings: z.number().int().min(0).max(20).nullable(),
+  napHours: z.number().min(0).max(24).nullable(),
   appetite: Appetite.nullable(),
   social: Social.nullable(),
   cycleDay: z.number().int().min(1).max(60).nullable(),
@@ -138,6 +140,8 @@ export interface DayDTO {
   aiFields: AiField[];
   /** Fields the last extraction looked for and could not find. */
   metricsMissing: AiField[];
+  /** For each AI-filled field, the ids of the records it was taken from. */
+  metricSources: Partial<Record<AiField, string[]>>;
   /** True when `metrics.cycleDay` was counted on from an earlier day. */
   cycleDayDerived: boolean;
   tags: string[];

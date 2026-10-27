@@ -80,11 +80,11 @@ export class AiWorker {
     const records = repo.listRecordsForDay(this.db, job.target_id);
     if (records.length === 0) return;
 
-    const lines = records.map((r) => {
+    const lines = records.map((r, i) => {
       const time = timeOfDay(r.timestamp, this.config.JOURNAL_TZ);
       const tags = r.tags.length ? ` [${r.tags.join(", ")}]` : "";
       const body = r.text.trim() || `(${r.media.map((m) => m.kind).join(", ") || "empty entry"})`;
-      return `${time} — ${body}${tags}`;
+      return `#${i + 1} ${time} — ${body}${tags}`;
     });
 
     // Only the user's own values are context; anything the job wrote last
@@ -108,7 +108,13 @@ export class AiWorker {
         summary: result.summary.trim(),
         tags: result.tags,
       });
-      repo.applyAiMetrics(this.db, day.date, result.metrics, extract);
+      const sources = Object.fromEntries(
+        Object.entries(result.sources).map(([field, entries]) => [
+          field,
+          [...new Set(entries)].flatMap((n) => records[n - 1]?.id ?? []),
+        ]),
+      );
+      repo.applyAiMetrics(this.db, day.date, result.metrics, extract, sources);
     });
   }
 }

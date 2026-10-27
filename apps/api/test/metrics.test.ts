@@ -107,6 +107,26 @@ describe("day metrics", () => {
     expect(later.metricsMissing).not.toContain("cycleDay");
   });
 
+  it("records which entries each value came from", async () => {
+    const first = await addRecord("woke at 3, slept 4 hours");
+    const second = await addRecord("went back to sleep, got 3 more, napped an hour", NOON + 60_000);
+    await patchDay({ metrics: { appetite: "low" } });
+    ctx.summarizer.metrics = { sleepHours: 7, sleepWakings: 1, napHours: 1, appetite: "high" };
+    ctx.summarizer.sources = { sleepHours: [1, 2], sleepWakings: [1], napHours: [2], appetite: [2] };
+    await summarize();
+
+    const input = ctx.summarizer.dayCalls.at(-1)!;
+    expect(input.lines[0]).toMatch(/^#1 \d\d:\d\d — woke at 3/);
+
+    const day = await getDay();
+    expect(day.metrics).toMatchObject({ sleepHours: 7, sleepWakings: 1, napHours: 1, appetite: "low" });
+    expect(day.metricSources).toEqual({
+      sleepHours: [first.id, second.id],
+      sleepWakings: [first.id],
+      napHours: [second.id],
+    });
+  });
+
   it("rejects values outside the scales", async () => {
     await addRecord("x");
     expect((await patchDay({ metrics: { energy: 6 } })).statusCode).toBe(400);

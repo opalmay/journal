@@ -5,6 +5,7 @@ import { Composer } from "../components/Composer.js";
 import { RecordCard } from "../components/RecordCard.js";
 import { MoodPicker } from "../components/MoodPicker.js";
 import { AiMark, MetricsPanel } from "../components/MetricsPanel.js";
+import { chipsFromRecord } from "../lib/metrics.js";
 import { TagInput } from "../components/TagInput.js";
 import { Button, Card, EmptyState, ErrorNote, Spinner } from "../components/ui.js";
 import { useDay, useRegenerate, useSettings, useTags, useUpdateDay } from "../lib/queries.js";
@@ -125,6 +126,7 @@ export function DayPage() {
               record={record}
               timeZone={settings?.timeZone ?? "UTC"}
               aiEnabled={settings?.aiEnabled}
+              pickedUp={chipsFromRecord(data, record.id)}
             />
           ))}
         </div>

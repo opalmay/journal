@@ -25,6 +25,8 @@ interface DayRow {
   energy: number | null;
   sleep_hours: number | null;
   sleep_quality: string | null;
+  sleep_wakings: number | null;
+  nap_hours: number | null;
   appetite: string | null;
   social: string | null;
   cycle_day: number | null;
@@ -33,6 +35,7 @@ interface DayRow {
   exercise: string | null;
   intake: string | null;
   user_fields: string;
+  metric_sources: string;
   metrics_extracted_at: number | null;
   ai_generated_at: number | null;
   created_at: number;
@@ -80,6 +83,8 @@ const METRIC_COLUMNS: Record<keyof DayMetrics, keyof DayRow & string> = {
   energy: "energy",
   sleepHours: "sleep_hours",
   sleepQuality: "sleep_quality",
+  sleepWakings: "sleep_wakings",
+  napHours: "nap_hours",
   appetite: "appetite",
   social: "social",
   cycleDay: "cycle_day",
@@ -125,6 +130,10 @@ function toDayDTO(
   const owned = userFields(row);
   const extracted = row.metrics_extracted_at !== null;
   const asked = extractableFields(prefs);
+  const aiFields = extracted
+    ? asked.filter((f) => !owned.has(f) && row[AI_COLUMNS[f]] !== null)
+    : [];
+  const sources = JSON.parse(row.metric_sources) as Partial<Record<AiField, string[]>>;
   return {
     date: row.date,
     title: row.title,
@@ -132,9 +141,10 @@ function toDayDTO(
     note: row.note,
     mood: row.mood as DayDTO["mood"],
     metrics,
-    aiFields: extracted
-      ? asked.filter((f) => !owned.has(f) && row[AI_COLUMNS[f]] !== null)
-      : [],
+    aiFields,
+    metricSources: Object.fromEntries(
+      aiFields.filter((f) => sources[f]?.length).map((f) => [f, sources[f]!]),
+    ),
     metricsMissing: extracted
       ? asked.filter(
           (f) =>
@@ -718,20 +728,24 @@ export function applyAiMetrics(
   date: string,
   extracted: Partial<Record<AiField, number | string | null>>,
   asked: AiField[],
+  sources: Partial<Record<AiField, string[]>> = {},
 ): void {
   const row = getDayRow(db, date);
   if (!row) return;
   const owned = userFields(row);
   const sets: string[] = [];
   const values: (string | number | null)[] = [];
+  const keptSources: Partial<Record<AiField, string[]>> = {};
   for (const field of asked) {
     if (owned.has(field)) continue;
-    const value = extracted[field] ?? null;
+    const raw = extracted[field] ?? null;
+    const value = typeof raw === "string" && !raw.trim() ? null : raw;
     sets.push(`${AI_COLUMNS[field]} = ?`);
-    values.push(typeof value === "string" && !value.trim() ? null : value);
+    values.push(value);
+    if (value !== null && sources[field]?.length) keptSources[field] = sources[field];
   }
-  sets.push("metrics_extracted_at = ?", "updated_at = ?");
-  values.push(Date.now(), Date.now(), date);
+  sets.push("metric_sources = ?", "metrics_extracted_at = ?", "updated_at = ?");
+  values.push(JSON.stringify(keptSources), Date.now(), Date.now(), date);
   db.prepare(`UPDATE days SET ${sets.join(", ")} WHERE date = ?`).run(...values);
 }
 

@@ -61,11 +61,14 @@ export function RecordCard({
   timeZone,
   onTagClick,
   aiEnabled,
+  pickedUp = [],
 }: {
   record: RecordDTO;
   timeZone: string;
   onTagClick?: (tag: string) => void;
   aiEnabled?: boolean;
+  /** What the day summary took from this entry, e.g. "slept 7h". */
+  pickedUp?: string[];
 }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(record.text);
@@ -141,6 +144,15 @@ export function RecordCard({
       )}
 
       <MediaBlock media={record.media} />
+
+      {pickedUp.length > 0 && !editing && (
+        <p
+          className="mt-2 text-xs text-overlay1"
+          title="What the day summary took from this entry"
+        >
+          <span className="text-mauve">picked up</span> {pickedUp.join(" · ")}
+        </p>
+      )}
 
       {record.tags.length > 0 && !editing && (
         <div className="mt-3 flex flex-wrap gap-1">

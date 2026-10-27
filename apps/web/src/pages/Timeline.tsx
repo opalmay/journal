@@ -4,6 +4,8 @@ import type { RecordDTO } from "@journal/shared";
 import { Composer } from "../components/Composer.js";
 import { RecordCard } from "../components/RecordCard.js";
 import { MoodDot } from "../components/MoodPicker.js";
+import { TodayCard } from "../components/TodayCard.js";
+import { chipsFromRecord } from "../lib/metrics.js";
 import { Button, Chip, EmptyState, ErrorNote, Spinner } from "../components/ui.js";
 import { useDays, useRecordFeed, useSettings } from "../lib/queries.js";
 
@@ -49,6 +51,7 @@ export function TimelinePage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <TodayCard />
       <Composer />
       <ErrorNote error={feed.error} />
 
@@ -85,6 +88,7 @@ export function TimelinePage() {
                   record={record}
                   timeZone={timeZone}
                   aiEnabled={settings?.aiEnabled}
+                  pickedUp={dayByDate.has(date) ? chipsFromRecord(dayByDate.get(date)!, record.id) : []}
                 />
               ))}
             </div>

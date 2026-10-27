@@ -28,6 +28,8 @@ export interface DaySummaryResult {
   summary: string;
   tags: string[];
   metrics: ExtractedMetrics;
+  /** For each field, the entry numbers (1-based, as in `lines`) it came from. */
+  sources: Partial<Record<AiField, number[]>>;
 }
 
 export interface Summarizer {
@@ -38,7 +40,7 @@ export interface Summarizer {
 export interface DaySummaryInput {
   date: string;
   mood: number | null;
-  /** One line per record, already in time order: `HH:mm — text`. */
+  /** One line per record, already in time order: `#n HH:mm — text`. */
   lines: string[];
   existingTags: string[];
   /** Fields to extract. The user's own values are left out and given as context. */
@@ -65,6 +67,7 @@ const DaySummarySchema = z.object({
   summary: z.string().min(1).max(4000),
   tags: z.array(z.string()).max(8),
   metrics: ExtractedMetricsSchema.default({}),
+  sources: z.record(z.array(z.number().int()).catch([])).catch({}).default({}),
 });
 
 const RECORD_TITLE_JSON_SCHEMA = {
@@ -93,12 +96,19 @@ const METRIC_JSON_SCHEMA: Record<AiField, Record<string, unknown>> = {
   ),
   sleepHours: nullable(
     { type: "number" },
-    "Hours slept the night that ended this day, only if a duration was given.",
+    "Total hours slept the night that ended this day, only if durations were given. " +
+      "A night broken by waking up is added up across its parts. Naps are not included.",
   ),
   sleepQuality: nullable(
     { type: "string", enum: ["poor", "ok", "good"] },
     "Quality of last night's sleep. 'slept badly' is poor.",
   ),
+  sleepWakings: nullable(
+    { type: "integer" },
+    "Times the author woke up during the night and went back to sleep. 0 only if they " +
+      "said they slept through.",
+  ),
+  napHours: nullable({ type: "number" }, "Total hours napped during the day."),
   appetite: nullable({ type: "string", enum: ["low", "normal", "high"] }, "Appetite."),
   social: nullable(
     { type: "string", enum: ["none", "some", "a_lot"] },
@@ -137,8 +147,17 @@ function daySummaryJsonSchema(extract: AiField[]): Record<string, unknown> {
         required: extract,
         additionalProperties: false,
       },
+      sources: {
+        type: "object",
+        description: "For each metric that is not null, the #numbers of the entries it came from.",
+        properties: Object.fromEntries(
+          extract.map((f) => [f, { type: "array", items: { type: "integer" } }]),
+        ),
+        required: extract,
+        additionalProperties: false,
+      },
     },
-    required: ["title", "summary", "tags", "metrics"],
+    required: ["title", "summary", "tags", "metrics", "sources"],
     additionalProperties: false,
   };
 }
@@ -147,7 +166,15 @@ const METRICS_INSTRUCTIONS = `Also fill in "metrics" from what the entries say. 
 not stated or clearly implied; never guess or infer from tone alone, since a
 missing value is flagged to the author and a wrong one misleads them. Map
 spoken words onto the scales given. If the day contradicts itself, the latest
-entry wins. Sleep means the night that ended on this day.`;
+entry wins. Sleep means the night that ended on this day.
+
+Sleep is often reported in pieces. "Slept 11 to 3, then 5 to 8" is 7 hours
+with one waking. A later entry that says "got 3 more hours" or "went back to
+sleep" adds to the earlier figure rather than replacing it. Naps go in
+napHours, never in sleepHours.
+
+In "sources", list for every metric that is not null the #numbers of the
+entries it came from, and an empty list for every null one.`;
 
 const SYSTEM = `You are the summarizer inside someone's private journal.
 
@@ -279,6 +306,10 @@ export class ClaudeSummarizer implements Summarizer {
       effort: "medium",
       maxTokens: 16_000,
     });
-    return { ...result, metrics: result.metrics as ExtractedMetrics };
+    return {
+      ...result,
+      metrics: result.metrics as ExtractedMetrics,
+      sources: result.sources as Partial<Record<AiField, number[]>>,
+    };
   }
 }

@@ -26,6 +26,8 @@ export class FakeSummarizer implements Summarizer {
   dayCalls: DaySummaryInput[] = [];
   /** What the next day summaries report finding in the entries. */
   metrics: ExtractedMetrics = {};
+  /** Entry numbers each metric is reported to come from. */
+  sources: Partial<Record<string, number[]>> = {};
 
   async recordTitle(text: string) {
     this.recordCalls.push(text);
@@ -37,7 +39,14 @@ export class FakeSummarizer implements Summarizer {
     const metrics = Object.fromEntries(
       input.extract.map((f) => [f, this.metrics[f] ?? null]),
     ) as ExtractedMetrics;
-    return { title: "a day", summary: "things happened", tags: ["generated"], metrics };
+    const sources = Object.fromEntries(input.extract.map((f) => [f, this.sources[f] ?? []]));
+    return {
+      title: "a day",
+      summary: "things happened",
+      tags: ["generated"],
+      metrics,
+      sources,
+    };
   }
 }
 
