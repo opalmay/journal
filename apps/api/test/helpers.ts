@@ -6,6 +6,7 @@ import { buildApp } from "../src/app.js";
 import { loadConfig, type Config } from "../src/config.js";
 import { hashPassword, SESSION_COOKIE } from "../src/auth.js";
 import type { Summarizer } from "../src/ai/client.js";
+import type { Notification, Notifier } from "../src/reminders/ntfy.js";
 
 export const TEST_PASSWORD = "correct horse battery staple";
 export const TEST_WEBHOOK_TOKEN = "test-webhook-token";
@@ -16,6 +17,7 @@ export interface TestContext {
   dataDir: string;
   cookie: string;
   summarizer: FakeSummarizer;
+  notifier: FakeNotifier;
   close(): Promise<void>;
 }
 
@@ -31,6 +33,16 @@ export class FakeSummarizer implements Summarizer {
   async daySummary(input: unknown) {
     this.dayCalls.push(input);
     return { title: "a day", summary: "things happened", tags: ["generated"] };
+  }
+}
+
+export class FakeNotifier implements Notifier {
+  sent: { topic: string; notification: Notification }[] = [];
+  fail = false;
+
+  async send(topic: string, notification: Notification) {
+    if (this.fail) throw new Error("ntfy down");
+    this.sent.push({ topic, notification });
   }
 }
 
@@ -50,7 +62,8 @@ export async function makeContext(
   } as NodeJS.ProcessEnv);
 
   const summarizer = new FakeSummarizer();
-  const app = await buildApp(config, { summarizer, logger: false });
+  const notifier = new FakeNotifier();
+  const app = await buildApp(config, { summarizer, notifier, logger: false });
   await app.ready();
 
   const login = await app.inject({
@@ -69,6 +82,7 @@ export async function makeContext(
     dataDir,
     cookie,
     summarizer,
+    notifier,
     async close() {
       await app.close();
       fs.rmSync(dataDir, { recursive: true, force: true });

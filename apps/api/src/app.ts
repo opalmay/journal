@@ -19,12 +19,16 @@ import { registerMediaRoutes } from "./routes/media.js";
 import { registerTagRoutes } from "./routes/tags.js";
 import { registerWebhookRoutes } from "./routes/webhooks.js";
 import { registerSettingsRoutes } from "./routes/settings.js";
+import { registerReminderRoutes } from "./routes/reminders.js";
+import { NtfyNotifier, type Notifier } from "./reminders/ntfy.js";
+import { ReminderScheduler } from "./reminders/reminders.js";
 
 declare module "fastify" {
   interface FastifyInstance {
     db: Db;
     config: Config;
     worker: AiWorker | null;
+    notifier: Notifier;
   }
   interface FastifyRequest {
     sessionId: string | null;
@@ -34,6 +38,8 @@ declare module "fastify" {
 export interface BuildOptions {
   /** Overrides the real Claude client — used by tests. */
   summarizer?: Summarizer;
+  /** Overrides the real ntfy client — used by tests. */
+  notifier?: Notifier;
   logger?: boolean;
 }
 
@@ -83,6 +89,12 @@ export async function buildApp(config: Config, options: BuildOptions = {}): Prom
     app.addHook("onClose", async () => worker.stop());
   }
 
+  const notifier = options.notifier ?? new NtfyNotifier(config.ntfyUrl, config.NTFY_TOKEN);
+  app.decorate("notifier", notifier);
+  const reminders = new ReminderScheduler(db, config.JOURNAL_TZ, notifier, app.log);
+  app.addHook("onReady", async () => reminders.start());
+  app.addHook("onClose", async () => reminders.stop());
+
   app.addHook("onClose", async () => db.close());
 
   // --- session gate ------------------------------------------------------
@@ -121,6 +133,7 @@ export async function buildApp(config: Config, options: BuildOptions = {}): Prom
   await registerTagRoutes(app);
   await registerWebhookRoutes(app);
   await registerSettingsRoutes(app);
+  await registerReminderRoutes(app);
   await registerWebApp(app);
 
   return app;

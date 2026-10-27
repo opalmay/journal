@@ -63,6 +63,25 @@ Icons are generated from code rather than committed as opaque binaries:
 node scripts/generate-icons.mjs
 ```
 
+## Daily reminders
+
+Settings → Reminders sends a daily nudge through [ntfy](https://ntfy.sh), and
+skips it on days you have already written something. Setup is in the app:
+
+1. **Subscribe in ntfy** opens the ntfy app on the journal's topic. The server
+   generates the topic on first use, with 128 random bits, and stores it in
+   the database. On a desktop, **Open in browser** shows the same topic in
+   ntfy's web client.
+2. **Send test**, then confirm it arrived. That turns the reminder on. ntfy
+   doesn't report subscribers, so the server can't check for you.
+3. Pick the time. It is read in `JOURNAL_TZ`. Tapping a notification opens
+   the journal at the address you set it up from.
+
+The topic works like a password: anyone holding it can read the notifications.
+That is why they never contain journal text. **New topic** replaces it and
+turns reminders off until you subscribe again. `NTFY_URL` and `NTFY_TOKEN`
+point at a self-hosted or access-controlled ntfy server instead of ntfy.sh.
+
 ## The ring webhook
 
 `POST /api/webhooks/ring`, `multipart/form-data`, authenticated with the shared
@@ -152,4 +171,5 @@ npm test
 
 Covers day-key derivation across DST and local midnight, the webhook contract
 (audio, no audio, replay, bad token), record and day CRUD, byte-range media
-serving, and the AI job queue's debouncing, retries and backoff.
+serving, the AI job queue's debouncing, retries and backoff, and when daily
+reminders fire, skip and retry.

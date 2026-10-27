@@ -32,6 +32,10 @@ const EnvSchema = z.object({
   AI_DAY_MODEL: z.string().default(DEFAULT_DAY_MODEL),
   MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(64 * 1024 * 1024),
   SESSION_TTL_DAYS: z.coerce.number().int().positive().default(90),
+  // Daily reminders go out through ntfy. The topic is generated and stored in
+  // the database; only the server, and a token for a protected one, live here.
+  NTFY_URL: z.string().url().default("https://ntfy.sh"),
+  NTFY_TOKEN: z.string().default(""),
 });
 
 export type Config = ReturnType<typeof loadConfig>;
@@ -69,5 +73,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     mediaDir: path.join(dataDir, "media"),
     dbPath: path.join(dataDir, "journal.db"),
     aiEnabled: e.AI_ENABLED && Boolean(e.ANTHROPIC_API_KEY),
+    ntfyUrl: e.NTFY_URL.replace(/\/+$/, ""),
   };
 }

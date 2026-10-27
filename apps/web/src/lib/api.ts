@@ -54,6 +54,15 @@ export interface Settings {
   jobs: Record<string, number>;
 }
 
+export interface Reminders {
+  enabled: boolean;
+  time: string;
+  timeZone: string;
+  server: string;
+  topic: string;
+  links: { app: string; web: string };
+}
+
 export interface RecordFilters {
   from?: string;
   to?: string;
@@ -112,4 +121,10 @@ export const api = {
 
   tags: () => request<{ tags: TagDTO[] }>("/api/tags"),
   settings: () => request<Settings>("/api/settings"),
+
+  reminders: () => request<Reminders>("/api/reminders"),
+  updateReminders: (patch: { enabled?: boolean; time?: string }) =>
+    request<Reminders>("/api/reminders", { method: "PATCH", body: JSON.stringify(patch) }),
+  testReminder: () => request<{ sent: true }>("/api/reminders/test", { method: "POST" }),
+  rotateReminderTopic: () => request<Reminders>("/api/reminders/topic", { method: "POST" }),
 };

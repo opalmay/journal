@@ -10,6 +10,7 @@ import { api, type RecordFilters } from "./api.js";
 export const keys = {
   me: ["me"] as const,
   settings: ["settings"] as const,
+  reminders: ["reminders"] as const,
   tags: ["tags"] as const,
   records: (filters: RecordFilters) => ["records", filters] as const,
   days: (from: string, to: string) => ["days", from, to] as const,
@@ -30,6 +31,25 @@ export function useMe() {
 
 export function useSettings() {
   return useQuery({ queryKey: keys.settings, queryFn: api.settings });
+}
+
+export function useReminders() {
+  return useQuery({ queryKey: keys.reminders, queryFn: api.reminders });
+}
+
+/** Every reminder write returns the fresh settings; drop them straight into the cache. */
+export function useUpdateReminders() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (
+      change: { kind: "patch"; patch: Parameters<typeof api.updateReminders>[0] } | { kind: "rotate" },
+    ) => (change.kind === "patch" ? api.updateReminders(change.patch) : api.rotateReminderTopic()),
+    onSuccess: (data) => client.setQueryData(keys.reminders, data),
+  });
+}
+
+export function useTestReminder() {
+  return useMutation({ mutationFn: api.testReminder });
 }
 
 export function useTags() {

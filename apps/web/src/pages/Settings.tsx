@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button, Card, ErrorNote, Spinner } from "../components/ui.js";
 import { useSettings } from "../lib/queries.js";
+import { RemindersCard } from "../components/RemindersCard.js";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -80,6 +81,8 @@ export function SettingsPage() {
                 .join(", ")}
         </Row>
       </Card>
+
+      <RemindersCard />
 
       <Card className="p-4">
         <h2 className="mb-2 text-sm font-semibold text-mauve">Ring webhook</h2>
