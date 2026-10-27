@@ -9,9 +9,9 @@ primary_region = 'ams'
 [build]
 
 [env]
-  AI_DAY_MODEL = 'claude-opus-5'
+  AI_DAY_MODEL = 'claude-opus-5-5'
   AI_ENABLED = 'true'
-  AI_TITLE_MODEL = 'claude-haiku-4-5'
+  AI_TITLE_MODEL = 'claude-haiku-5-5'
   DATA_DIR = '/data'
   HOST = '0.0.0.0'
   JOURNAL_TZ = 'Europe/Berlin'

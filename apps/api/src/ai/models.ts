@@ -7,5 +7,5 @@
  * Day summaries run once per day over everything in it, and that judgement is
  * worth paying for.
  */
-export const DEFAULT_TITLE_MODEL = "claude-haiku-4-5";
-export const DEFAULT_DAY_MODEL = "claude-opus-5";
+export const DEFAULT_TITLE_MODEL = "claude-haiku-5-5";
+export const DEFAULT_DAY_MODEL = "claude-opus-5-5";

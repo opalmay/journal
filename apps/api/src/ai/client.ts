@@ -8,11 +8,15 @@ import { DEFAULT_DAY_MODEL, DEFAULT_TITLE_MODEL } from "./models.js";
 const FALLBACK_BETA = "server-side-fallback-2026-07-01";
 
 /**
- * Haiku 4.5 rejects `output_config.effort` and has no adaptive thinking, and
- * server-side refusal fallbacks are an Opus-tier feature. The request shape
- * therefore follows the model, not the other way round.
+ * The request shape follows the model. Haiku 4.5 rejects `output_config.effort`
+ * and adaptive thinking; Haiku 5.5 takes both but has no server-side refusal
+ * fallback, which only the Opus, Sonnet and Fable tiers offer.
  */
-function isReasoningModel(model: string): boolean {
+function supportsEffort(model: string): boolean {
+  return !/^claude-haiku-[34]/.test(model);
+}
+
+function supportsFallback(model: string): boolean {
   return !model.startsWith("claude-haiku-");
 }
 
@@ -207,7 +211,7 @@ export class ClaudeSummarizer implements Summarizer {
     parser: z.ZodType<T>,
     options: { model: string; effort: "low" | "medium"; maxTokens: number },
   ): Promise<T> {
-    const reasoning = isReasoningModel(options.model);
+    const effort = supportsEffort(options.model);
     const response = await this.client.beta.messages.create({
       model: options.model,
       max_tokens: options.maxTokens,
@@ -215,14 +219,11 @@ export class ClaudeSummarizer implements Summarizer {
       messages: [{ role: "user", content: prompt }],
       output_config: {
         format: { type: "json_schema", schema },
-        ...(reasoning ? { effort: options.effort } : {}),
+        ...(effort ? { effort: options.effort } : {}),
       },
-      ...(reasoning
-        ? {
-            betas: [FALLBACK_BETA],
-            fallbacks: "default" as const,
-            thinking: { type: "adaptive" as const },
-          }
+      ...(effort ? { thinking: { type: "adaptive" as const } } : {}),
+      ...(supportsFallback(options.model)
+        ? { betas: [FALLBACK_BETA], fallbacks: "default" as const }
         : {}),
     });
 
