@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { Link } from "react-router";
+import { useState, type ReactNode } from "react";
+import { Link, useSearchParams } from "react-router";
 import { moodColor, moodLabel } from "../lib/mood.js";
+import { TrendsChart } from "../components/TrendsChart.js";
 import { Button, ErrorNote, Spinner } from "../components/ui.js";
 import { useDays } from "../lib/queries.js";
 
@@ -30,7 +31,48 @@ export function monthGrid(year: number, month: number): { date: string; inMonth:
   return cells;
 }
 
+/** Month grid or the long-range trends, kept in the URL so reload and back keep the view. */
+function ViewToggle({ trends, onChange }: { trends: boolean; onChange: (trends: boolean) => void }) {
+  return (
+    <div className="ml-auto flex rounded-lg bg-surface0 p-0.5 text-xs font-medium">
+      {[
+        { label: "Month", value: false },
+        { label: "Trends", value: true },
+      ].map((option) => (
+        <button
+          key={option.label}
+          type="button"
+          onClick={() => onChange(option.value)}
+          className={`rounded-md px-2 py-1 transition-colors ${
+            trends === option.value ? "bg-surface1 text-text" : "text-subtext0 hover:text-text"
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function CalendarPage() {
+  const [params, setParams] = useSearchParams();
+  const trends = params.get("view") === "trends";
+  const setTrends = (next: boolean) => setParams(next ? { view: "trends" } : {});
+
+  return trends ? (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2">
+        <h1 className="text-base font-semibold text-text">Trends</h1>
+        <ViewToggle trends onChange={setTrends} />
+      </div>
+      <TrendsChart />
+    </div>
+  ) : (
+    <MonthView toggle={<ViewToggle trends={false} onChange={setTrends} />} />
+  );
+}
+
+function MonthView({ toggle }: { toggle: ReactNode }) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
@@ -60,15 +102,17 @@ export function CalendarPage() {
           })}
         </h1>
         <Button onClick={() => shift(1)}>→</Button>
-        <Button
-          className="ml-auto"
-          onClick={() => {
-            setYear(now.getFullYear());
-            setMonth(now.getMonth());
-          }}
-        >
-          Today
-        </Button>
+        {toggle}
+        {(year !== now.getFullYear() || month !== now.getMonth()) && (
+          <Button
+            onClick={() => {
+              setYear(now.getFullYear());
+              setMonth(now.getMonth());
+            }}
+          >
+            Today
+          </Button>
+        )}
       </div>
 
       <ErrorNote error={error} />
