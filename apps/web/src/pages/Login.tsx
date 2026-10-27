@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Navigate, useNavigate } from "react-router";
+import { Navigate, useNavigate, useSearchParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api.js";
 import { keys, useMe } from "../lib/queries.js";
@@ -12,9 +12,18 @@ export function LoginPage() {
   const navigate = useNavigate();
   const client = useQueryClient();
   const { data, isPending } = useMe();
+  // Set by the OAuth consent page, which is served by the API, not this app.
+  const next = useSearchParams()[0].get("next");
+  const oauthNext = next?.startsWith("/oauth/") ? next : null;
 
   if (isPending) return <Spinner label="Checking session" />;
-  if (data?.authenticated) return <Navigate to="/" replace />;
+  if (data?.authenticated) {
+    if (oauthNext) {
+      window.location.replace(oauthNext);
+      return <Spinner label="Continuing" />;
+    }
+    return <Navigate to="/" replace />;
+  }
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -22,6 +31,10 @@ export function LoginPage() {
     setError(null);
     try {
       await api.login(password);
+      if (oauthNext) {
+        window.location.replace(oauthNext);
+        return;
+      }
       await client.invalidateQueries({ queryKey: keys.me });
       void navigate("/", { replace: true });
     } catch (err) {

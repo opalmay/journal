@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import * as repo from "../db/repo.js";
 import { jobStats } from "../ai/jobs.js";
+import { listConnectedClients } from "../oauth.js";
 
 export async function registerSettingsRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/settings", async () => {
@@ -17,6 +18,7 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
       webhookTokenSet: Boolean(config.WEBHOOK_TOKEN),
       storage: repo.storageUsage(db),
       jobs: jobStats(db),
+      connectedApps: listConnectedClients(db).map((c) => ({ id: c.id, name: c.name })),
       ...repo.getPreferences(db),
     };
   });

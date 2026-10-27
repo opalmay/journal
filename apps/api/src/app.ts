@@ -20,6 +20,9 @@ import { registerTagRoutes } from "./routes/tags.js";
 import { registerWebhookRoutes } from "./routes/webhooks.js";
 import { registerSettingsRoutes } from "./routes/settings.js";
 import { registerReminderRoutes } from "./routes/reminders.js";
+import { registerOAuthRoutes } from "./routes/oauth.js";
+import { registerMcpRoutes } from "./routes/mcp.js";
+import { purgeExpiredGrants } from "./oauth.js";
 import { NtfyNotifier, type Notifier } from "./reminders/ntfy.js";
 import { ReminderScheduler } from "./reminders/reminders.js";
 
@@ -50,6 +53,7 @@ export async function buildApp(config: Config, options: BuildOptions = {}): Prom
   fs.mkdirSync(config.mediaDir, { recursive: true });
   const db = openDb(config.dbPath);
   purgeExpiredSessions(db);
+  purgeExpiredGrants(db);
 
   const app = Fastify({
     logger: options.logger ?? config.NODE_ENV !== "test",
@@ -134,6 +138,8 @@ export async function buildApp(config: Config, options: BuildOptions = {}): Prom
   await registerWebhookRoutes(app);
   await registerSettingsRoutes(app);
   await registerReminderRoutes(app);
+  await registerOAuthRoutes(app);
+  await registerMcpRoutes(app);
   await registerWebApp(app);
 
   return app;

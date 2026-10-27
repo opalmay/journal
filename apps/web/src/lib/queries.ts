@@ -45,6 +45,14 @@ export function useUpdateSettings() {
   });
 }
 
+export function useRevokeApp() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: api.revokeApp,
+    onSuccess: () => void client.invalidateQueries({ queryKey: keys.settings }),
+  });
+}
+
 export function useReminders() {
   return useQuery({ queryKey: keys.reminders, queryFn: api.reminders });
 }

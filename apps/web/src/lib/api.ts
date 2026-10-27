@@ -52,6 +52,7 @@ export interface Settings {
   webhookTokenSet: boolean;
   storage: { files: number; bytes: number };
   jobs: Record<string, number>;
+  connectedApps: { id: string; name: string }[];
   trackCycle: boolean;
 }
 
@@ -128,6 +129,7 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(patch),
     }),
+  revokeApp: (id: string) => request<void>(`/api/oauth/clients/${id}`, { method: "DELETE" }),
 
   reminders: () => request<Reminders>("/api/reminders"),
   updateReminders: (patch: { enabled?: boolean; time?: string }) =>

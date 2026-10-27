@@ -401,6 +401,17 @@ export function listTags(db: Db): TagDTO[] {
     .all() as unknown as TagDTO[];
 }
 
+/** Days carrying a tag themselves (not through their records), newest first. */
+export function listDaysWithTag(db: Db, tag: string, limit: number): DayDTO[] {
+  const rows = db
+    .prepare(
+      `SELECT dt.day_date AS date FROM day_tags dt JOIN tags t ON t.id = dt.tag_id
+        WHERE t.name = ? ORDER BY dt.day_date DESC LIMIT ?`,
+    )
+    .all(normalizeTag(tag), limit) as unknown as { date: string }[];
+  return rows.map((r) => getDay(db, r.date)).filter((d): d is DayDTO => d !== null);
+}
+
 /** Drops tags nothing references any more, so the tag list stays honest. */
 export function pruneOrphanTags(db: Db): void {
   db.exec(

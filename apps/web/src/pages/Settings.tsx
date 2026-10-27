@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, Card, ErrorNote, Spinner } from "../components/ui.js";
-import { useSettings, useUpdateSettings } from "../lib/queries.js";
+import { useRevokeApp, useSettings, useUpdateSettings } from "../lib/queries.js";
 import { RemindersCard } from "../components/RemindersCard.js";
 
 function formatBytes(bytes: number): string {
@@ -27,6 +27,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 export function SettingsPage() {
   const { data, isPending, error } = useSettings();
   const updateSettings = useUpdateSettings();
+  const revokeApp = useRevokeApp();
   const [copied, setCopied] = useState(false);
 
   if (isPending) return <Spinner />;
@@ -93,6 +94,24 @@ export function SettingsPage() {
                 .map(([status, count]) => `${count} ${status}`)
                 .join(", ")}
         </Row>
+        {settings.connectedApps.length > 0 && (
+          <Row label="Connected apps">
+            {settings.connectedApps.map((app, i) => (
+              <span key={app.id}>
+                {i > 0 && " · "}
+                {app.name}{" "}
+                <button
+                  type="button"
+                  disabled={revokeApp.isPending}
+                  onClick={() => revokeApp.mutate(app.id)}
+                  className="text-xs text-overlay1 hover:text-red"
+                >
+                  revoke
+                </button>
+              </span>
+            ))}
+          </Row>
+        )}
       </Card>
 
       <RemindersCard />

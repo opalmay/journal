@@ -106,6 +106,22 @@ curl -X POST https://your-host/api/webhooks/ring \
 Deliveries are deduplicated on `sha256(recordedAt + transcription)`, so a device
 that retries gets `200 {"deduped": true}` rather than a second record.
 
+## MCP (claude.ai and other clients)
+
+`POST /mcp` is a read-only MCP server (Streamable HTTP, stateless) with three tools:
+
+| tool | returns |
+|---|---|
+| `get_entries(from, to)` | each day's title, summary, note, mood, energy, sleep and tags, with its entries (≤ 92 days) |
+| `get_daily_series(from, to, fields)` | one number per date per field, `null` where nothing was recorded (≤ 366 days) |
+| `search_entries(query, limit?)` | entries matching keywords; `#tag` (or a tag's exact name) also finds tagged days |
+
+It is guarded by OAuth, not by the webhook token: that one can only add entries,
+and lives in the ring's settings. To connect claude.ai, add a custom connector
+with the URL `https://your-host/mcp`. Claude registers itself, you sign in with
+the journal password and approve it, and it gets its own tokens (an hour each,
+refreshed for up to 90 days). Settings lists connected apps with a *revoke* link.
+
 ## Deploying to Fly.io
 
 One Machine, one volume, one region — SQLite and the media directory need a
@@ -189,4 +205,5 @@ npm test
 Covers day-key derivation across DST and local midnight, the webhook contract
 (audio, no audio, replay, bad token), record and day CRUD, byte-range media
 serving, the AI job queue's debouncing, retries and backoff, and when daily
-reminders fire, skip and retry.
+reminders fire, skip and retry, and the MCP endpoint: its OAuth flow (PKCE,
+single-use codes, refresh rotation, revoking) and each tool.
