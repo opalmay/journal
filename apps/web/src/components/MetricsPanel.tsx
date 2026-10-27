@@ -92,7 +92,7 @@ function CommitInput({
 
 function Row({ label, ai, children }: { label: string; ai: boolean; children: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
       <span className="flex w-24 items-center gap-1 text-xs text-subtext0">
         {label}
         {ai && <AiMark />}
