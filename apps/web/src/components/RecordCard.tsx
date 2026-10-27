@@ -92,7 +92,7 @@ export function RecordCard({
         </time>
         {record.source === "ring" && <RingBadge />}
         {record.title && <h3 className="text-sm font-semibold text-text">{record.title}</h3>}
-        <div className="ml-auto flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+        <div className="ml-auto flex gap-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover:opacity-100 focus-within:opacity-100">
           {aiEnabled && (
             <Button
               variant="danger"
