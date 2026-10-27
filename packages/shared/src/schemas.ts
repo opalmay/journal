@@ -20,6 +20,7 @@ export const DayMetrics = z.object({
   sleepQuality: SleepQuality.nullable(),
   sleepWakings: z.number().int().min(0).max(20).nullable(),
   napHours: z.number().min(0).max(24).nullable(),
+  napTimes: z.string().trim().max(100).nullable(),
   appetite: Appetite.nullable(),
   social: Social.nullable(),
   cycleDay: z.number().int().min(1).max(60).nullable(),

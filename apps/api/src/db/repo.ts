@@ -27,6 +27,7 @@ interface DayRow {
   sleep_quality: string | null;
   sleep_wakings: number | null;
   nap_hours: number | null;
+  nap_times: string | null;
   appetite: string | null;
   social: string | null;
   cycle_day: number | null;
@@ -85,6 +86,7 @@ const METRIC_COLUMNS: Record<keyof DayMetrics, keyof DayRow & string> = {
   sleepQuality: "sleep_quality",
   sleepWakings: "sleep_wakings",
   napHours: "nap_hours",
+  napTimes: "nap_times",
   appetite: "appetite",
   social: "social",
   cycleDay: "cycle_day",

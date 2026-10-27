@@ -8,6 +8,7 @@ export const FIELD_LABELS: Record<AiField, string> = {
   sleepQuality: "sleep quality",
   sleepWakings: "night wakings",
   napHours: "naps",
+  napTimes: "nap times",
   appetite: "appetite",
   social: "social contact",
   cycleDay: "cycle day",
@@ -25,6 +26,7 @@ const ORDER: AiField[] = [
   "sleepQuality",
   "sleepWakings",
   "napHours",
+  "napTimes",
   "appetite",
   "social",
   "cycleDay",
@@ -51,6 +53,8 @@ export function metricChip(field: AiField, value: number | string): string {
       return Number(value) === 0 ? "slept through" : `woke ${value}×`;
     case "napHours":
       return `nap ${hours(Number(value))}`;
+    case "napTimes":
+      return `napped ${value}`;
     case "appetite":
       return `appetite ${value}`;
     case "social":

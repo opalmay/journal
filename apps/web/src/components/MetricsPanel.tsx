@@ -150,7 +150,13 @@ export function MetricsPanel({
       </Row>
       <Row
         label="sleep"
-        ai={ai("sleepHours") || ai("sleepQuality") || ai("sleepWakings") || ai("napHours")}
+        ai={
+          ai("sleepHours") ||
+          ai("sleepQuality") ||
+          ai("sleepWakings") ||
+          ai("napHours") ||
+          ai("napTimes")
+        }
       >
         <CommitInput
           type="number"
@@ -183,6 +189,12 @@ export function MetricsPanel({
             placeholder="h"
             className="w-14"
             onCommit={(v) => set("napHours", toNumber(v))}
+          />
+          <CommitInput
+            value={m.napTimes}
+            placeholder="13:00–14:00"
+            className="w-28"
+            onCommit={(v) => set("napTimes", v || null)}
           />
         </label>
       </Row>

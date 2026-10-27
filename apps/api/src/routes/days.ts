@@ -34,6 +34,7 @@ export async function registerDayRoutes(app: FastifyInstance): Promise<void> {
           sleepQuality: null,
           sleepWakings: null,
           napHours: null,
+          napTimes: null,
           appetite: null,
           social: null,
           cycleDay: null,

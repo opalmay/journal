@@ -113,6 +113,11 @@ const METRIC_JSON_SCHEMA: Record<AiField, Record<string, unknown>> = {
       "said they slept through.",
   ),
   napHours: nullable({ type: "number" }, "Total hours napped during the day."),
+  napTimes: nullable(
+    { type: "string" },
+    "When each nap was, as 24-hour HH:mm–HH:mm ranges separated by ', ', e.g. " +
+      "'13:00–14:30'. Only if a start and an end were given or can be worked out.",
+  ),
   appetite: nullable({ type: "string", enum: ["low", "normal", "high"] }, "Appetite."),
   social: nullable(
     { type: "string", enum: ["none", "some", "a_lot"] },
@@ -175,7 +180,8 @@ entry wins. Sleep means the night that ended on this day.
 Sleep is often reported in pieces. "Slept 11 to 3, then 5 to 8" is 7 hours
 with one waking. A later entry that says "got 3 more hours" or "went back to
 sleep" adds to the earlier figure rather than replacing it. Naps go in
-napHours, never in sleepHours.
+napHours, never in sleepHours. When a nap's start and end are given, its
+times go in napTimes and its length counts toward napHours.
 
 In "sources", list for every metric that is not null the #numbers of the
 entries it came from, and an empty list for every null one.`;
