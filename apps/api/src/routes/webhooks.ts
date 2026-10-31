@@ -68,7 +68,7 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
             source: "ring",
             clientName: parsed.client,
             dedupeKey,
-            timeZone: config.JOURNAL_TZ,
+            day: config.dayBoundary,
           });
           for (const file of files) {
             repo.insertMedia(db, {

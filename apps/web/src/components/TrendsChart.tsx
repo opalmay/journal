@@ -4,7 +4,7 @@ import { addDays, type DayDTO } from "@journal/shared";
 import { metricChip } from "../lib/metrics.js";
 import { moodColor } from "../lib/mood.js";
 import { dateRange, rollingMean, weekStart } from "../lib/trends.js";
-import { useDays } from "../lib/queries.js";
+import { useDays, useToday } from "../lib/queries.js";
 import { Chip, ErrorNote, Spinner } from "./ui.js";
 
 const RANGES = [
@@ -28,7 +28,7 @@ export function TrendsChart() {
   const [showSleep, setShowSleep] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
 
-  const to = new Date().toISOString().slice(0, 10);
+  const to = useToday();
   const from = addDays(to, -(range - 1));
   const { data: days, isPending, error } = useDays(from, to);
   const byDate = new Map((days ?? []).map((day) => [day.date, day]));

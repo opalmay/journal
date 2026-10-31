@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { RecordDTO } from "@journal/shared";
-import { timeOfDay } from "@journal/shared";
+import type { DayBoundary, RecordDTO } from "@journal/shared";
+import { isAfterMidnight, timeOfDay } from "@journal/shared";
 import { Button, Chip, ErrorNote } from "./ui.js";
 import { TagInput } from "./TagInput.js";
 import { useDeleteRecord, useRegenerate, useUpdateRecord } from "../lib/queries.js";
@@ -58,13 +58,13 @@ function MediaBlock({ media }: { media: RecordDTO["media"] }) {
 
 export function RecordCard({
   record,
-  timeZone,
+  day,
   onTagClick,
   aiEnabled,
   pickedUp = [],
 }: {
   record: RecordDTO;
-  timeZone: string;
+  day: DayBoundary;
   onTagClick?: (tag: string) => void;
   aiEnabled?: boolean;
   /** What the day summary took from this entry, e.g. "slept 7h". */
@@ -89,9 +89,11 @@ export function RecordCard({
       <header className="flex flex-wrap items-center gap-2">
         <time
           dateTime={new Date(record.timestamp).toISOString()}
+          // Written past midnight, so the clock reads earlier than the entries above it.
+          title={isAfterMidnight(record.timestamp, day) ? `After midnight, on ${record.dayDate}` : undefined}
           className="font-mono text-xs text-overlay1 tabular-nums"
         >
-          {timeOfDay(record.timestamp, timeZone)}
+          {timeOfDay(record.timestamp, day.timeZone)}
         </time>
         {record.source === "ring" && <RingBadge />}
         {record.title && <h3 className="text-sm font-semibold text-text">{record.title}</h3>}

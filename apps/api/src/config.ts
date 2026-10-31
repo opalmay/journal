@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { DayBoundary } from "@journal/shared";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_DAY_MODEL, DEFAULT_TITLE_MODEL } from "./ai/models.js";
@@ -20,6 +21,10 @@ const EnvSchema = z.object({
   HOST: z.string().default("0.0.0.0"),
   DATA_DIR: z.string().default("./data"),
   JOURNAL_TZ: z.string().default("Europe/Berlin"),
+  // Where one journal day ends and the next begins. Entries written before
+  // this local hour count as the small hours of the day before — writing at
+  // 01:00 is still part of the day you have been up for.
+  JOURNAL_DAY_START_HOUR: z.coerce.number().int().min(0).max(12).default(4),
   SESSION_SECRET: z.string().min(16).default("dev-only-insecure-session-secret!!"),
   AUTH_PASSWORD_HASH: z.string().default(""),
   WEBHOOK_TOKEN: z.string().default(""),
@@ -70,6 +75,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
   return {
     ...e,
     dataDir,
+    dayBoundary: { timeZone: e.JOURNAL_TZ, startHour: e.JOURNAL_DAY_START_HOUR } as DayBoundary,
     mediaDir: path.join(dataDir, "media"),
     dbPath: path.join(dataDir, "journal.db"),
     aiEnabled: e.AI_ENABLED && Boolean(e.ANTHROPIC_API_KEY),

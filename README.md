@@ -7,6 +7,8 @@ titles and summaries — and a webhook so a wearable can file entries on its own
   defaults to now, and decides which day the record belongs to (in `JOURNAL_TZ`,
   not UTC).
 - **Days** collect their records and carry their own tags, a 1–5 mood, and a note.
+  A day does not end at midnight: it runs to `JOURNAL_DAY_START_HOUR` the next
+  morning — see below.
 - **Titles** for both are written by Claude in a background job; the app works
   fully without an API key, titles simply stay empty.
 - **The ring webhook** accepts the device's `multipart/form-data` POST and turns
@@ -43,6 +45,28 @@ app and falls back to `index.html` so client-side routes survive a reload.
 
 Set `ANTHROPIC_API_KEY` to turn on AI titles and summaries. Without it,
 `/api/settings` reports `aiEnabled: false` and no jobs run.
+
+## Where a day ends
+
+Days run from `JOURNAL_DAY_START_HOUR` (default `4`, i.e. 04:00 in `JOURNAL_TZ`)
+to the same hour the next morning. Something written at 01:30 is part of the day
+you have been up for, not of the one that has just started, so it is filed under
+the day before — which is also what the mood, sleep and energy in it describe.
+Everything follows from that one rule: which day an entry lands on, what *Today*
+and *Yesterday* mean, which day the trends and the calendar end on, and which day
+the reminder asks about. `0` puts the boundary back at midnight.
+
+Entries written before the setting changed keep the day they were filed under.
+To move the small hours onto the day before and re-summarize the days on both
+sides of each move:
+
+```bash
+npm run rehome-records             # lists what would move
+npm run rehome-records -- --apply  # moves it
+```
+
+Values you set by hand are never touched; only entries change day, and the AI
+title, summary and extracted metrics of the affected days are queued again.
 
 ## Installing it as an app
 
@@ -202,7 +226,7 @@ fly ssh console -C "rm /data/backup.db /data/media.tgz"
 npm test
 ```
 
-Covers day-key derivation across DST and local midnight, the webhook contract
+Covers day-key derivation across DST, local midnight and the day boundary, the webhook contract
 (audio, no audio, replay, bad token), record and day CRUD, byte-range media
 serving, the AI job queue's debouncing, retries and backoff, and when daily
 reminders fire, skip and retry, and the MCP endpoint: its OAuth flow (PKCE,

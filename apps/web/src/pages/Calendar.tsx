@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router";
 import { moodColor, moodLabel } from "../lib/mood.js";
 import { TrendsChart } from "../components/TrendsChart.js";
 import { Button, ErrorNote, Spinner } from "../components/ui.js";
-import { useDays } from "../lib/queries.js";
+import { useDays, useToday } from "../lib/queries.js";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -73,16 +73,19 @@ export function CalendarPage() {
 }
 
 function MonthView({ toggle }: { toggle: ReactNode }) {
-  const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth());
+  // The month to open on follows the journal day: at 01:00 we are still in
+  // yesterday, which at the turn of a month is the month before.
+  const today = useToday();
+  const [year, setYear] = useState(Number(today.slice(0, 4)));
+  const [month, setMonth] = useState(Number(today.slice(5, 7)) - 1);
+  const thisYear = Number(today.slice(0, 4));
+  const thisMonth = Number(today.slice(5, 7)) - 1;
 
   const cells = monthGrid(year, month);
   const from = cells[0]!.date;
   const to = cells[cells.length - 1]!.date;
   const { data: days, isPending, error } = useDays(from, to);
   const byDate = new Map((days ?? []).map((day) => [day.date, day]));
-  const today = new Date().toISOString().slice(0, 10);
 
   const shift = (delta: number) => {
     const next = new Date(Date.UTC(year, month + delta, 1));
@@ -103,11 +106,11 @@ function MonthView({ toggle }: { toggle: ReactNode }) {
         </h1>
         <Button onClick={() => shift(1)}>→</Button>
         {toggle}
-        {(year !== now.getFullYear() || month !== now.getMonth()) && (
+        {(year !== thisYear || month !== thisMonth) && (
           <Button
             onClick={() => {
-              setYear(now.getFullYear());
-              setMonth(now.getMonth());
+              setYear(thisYear);
+              setMonth(thisMonth);
             }}
           >
             Today

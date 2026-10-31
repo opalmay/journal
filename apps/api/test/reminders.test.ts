@@ -10,6 +10,7 @@ import type { AddressInfo } from "node:net";
 import { NtfyNotifier, subscribeLinks } from "../src/reminders/ntfy.js";
 
 const silent = { error() {} };
+const BERLIN = { timeZone: "Europe/Berlin", startHour: 4 };
 
 // 2026-09-08 is CEST (UTC+2): 19:00Z is 21:00 in Berlin.
 const at = (iso: string) => Date.parse(iso);
@@ -22,11 +23,11 @@ describe("reminders", () => {
   let scheduler: ReminderScheduler;
   const auth = () => ({ cookie: ctx.cookie });
   const enable = (now = at("2026-09-08T08:00:00Z")) =>
-    updateReminderSettings(ctx.app.db, { enabled: true, time: "21:00" }, "Europe/Berlin", now);
+    updateReminderSettings(ctx.app.db, { enabled: true, time: "21:00" }, BERLIN, now);
 
   beforeEach(async () => {
     ctx = await makeContext();
-    scheduler = new ReminderScheduler(ctx.app.db, "Europe/Berlin", ctx.notifier, silent);
+    scheduler = new ReminderScheduler(ctx.app.db, BERLIN, ctx.notifier, silent);
   });
   afterEach(async () => {
     await ctx.close();
@@ -66,6 +67,20 @@ describe("reminders", () => {
     expect(await scheduler.tick(AFTER)).toBe("skipped");
     expect(await scheduler.tick(AFTER + 60_000)).toBe("idle");
     expect(ctx.notifier.sent).toHaveLength(0);
+  });
+
+  it("counts an entry written after midnight towards the day it belongs to", async () => {
+    enable();
+    await ctx.app.inject({
+      method: "POST",
+      url: "/api/records",
+      headers: auth(),
+      // 2026-09-09 01:00 Berlin — still the night of the 8th.
+      payload: { text: "up too late", timestamp: at("2026-09-08T23:00:00Z") },
+    });
+    // The 8th is covered; the 9th is still waiting to be written.
+    expect(await scheduler.tick(AFTER)).toBe("skipped");
+    expect(await scheduler.tick(NEXT_DAY_AFTER)).toBe("sent");
   });
 
   it("does not fire immediately when enabled after today's time", async () => {

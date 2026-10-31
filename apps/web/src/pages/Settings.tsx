@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatDayStart } from "@journal/shared";
 import { Button, Card, ErrorNote, Spinner } from "../components/ui.js";
 import { useRevokeApp, useSettings, useUpdateSettings } from "../lib/queries.js";
 import { RemindersCard } from "../components/RemindersCard.js";
@@ -57,6 +58,16 @@ export function SettingsPage() {
       <Card className="p-4">
         <h2 className="mb-2 text-sm font-semibold text-mauve">Journal</h2>
         <Row label="Timezone">{settings.timeZone}</Row>
+        <Row label="Day starts at">
+          {settings.dayStartHour === 0 ? (
+            "midnight"
+          ) : (
+            <>
+              {formatDayStart(settings.dayStartHour)}{" "}
+              <span className="text-xs text-overlay1">— a late entry counts as the day before</span>
+            </>
+          )}
+        </Row>
         <Row label="AI summaries">
           {settings.aiEnabled ? (
             <span className="text-green">on</span>

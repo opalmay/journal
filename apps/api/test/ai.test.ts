@@ -45,6 +45,23 @@ describe("ai worker", () => {
     expect(day.records[0].title).toBe("title for cycled to the lake");
   });
 
+  it("tells the summarizer which entries are on the far side of midnight", async () => {
+    // 23:00 and 01:30 Berlin, both on the journal day 2026-09-08.
+    const evening = await addRecord("wound down", Date.parse("2026-09-08T21:00:00Z"));
+    const night = await addRecord("still awake, mood 2", Date.parse("2026-09-08T23:30:00Z"));
+    expect(night.dayDate).toBe(evening.dayDate);
+
+    enqueueDaySummary(ctx.app.db, evening.dayDate, 0);
+    await worker.tick();
+
+    const call = ctx.summarizer.dayCalls.at(-1)!;
+    expect(call.dayStartsAt).toBe("04:00");
+    expect(call.lines).toEqual([
+      "#1 23:00 — wound down",
+      "#2 01:30 (after midnight) — still awake, mood 2",
+    ]);
+  });
+
   it("keeps tags the user added when the summary suggests its own", async () => {
     const record = await addRecord("gardening", Date.parse("2026-09-08T10:00:00Z"));
     await ctx.app.inject({

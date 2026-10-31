@@ -2,6 +2,7 @@ import type { Db } from "./index.js";
 import { transaction } from "./index.js";
 import { uuidv7, randomUUID } from "../ids.js";
 import { METRIC_FIELDS, dateKeyFromTimestamp, normalizeTag } from "@journal/shared";
+import type { DayBoundary } from "@journal/shared";
 import type {
   AiField,
   DayDTO,
@@ -508,14 +509,14 @@ export interface NewRecord {
   source: RecordSource;
   clientName?: string | null;
   dedupeKey?: string | null;
-  timeZone: string;
+  day: DayBoundary;
 }
 
 export function createRecord(db: Db, input: NewRecord): RecordDTO {
   return transaction(db, () => {
     const now = Date.now();
     const id = uuidv7(now);
-    const dayDate = dateKeyFromTimestamp(input.timestamp, input.timeZone);
+    const dayDate = dateKeyFromTimestamp(input.timestamp, input.day);
     ensureDay(db, dayDate, now);
     db.prepare(
       `INSERT INTO records
@@ -648,7 +649,7 @@ export function updateRecord(
   db: Db,
   id: string,
   patch: RecordPatch,
-  timeZone: string,
+  day: DayBoundary,
 ): RecordUpdateResult | null {
   return transaction(db, () => {
     const existing = db.prepare(`SELECT * FROM records WHERE id = ?`).get(id) as unknown as
@@ -669,7 +670,7 @@ export function updateRecord(
       values.push(patch.title);
     }
     if (patch.timestamp !== undefined && patch.timestamp !== existing.timestamp) {
-      const newDay = dateKeyFromTimestamp(patch.timestamp, timeZone);
+      const newDay = dateKeyFromTimestamp(patch.timestamp, day);
       ensureDay(db, newDay);
       sets.push("timestamp = ?", "day_date = ?");
       values.push(patch.timestamp, newDay);

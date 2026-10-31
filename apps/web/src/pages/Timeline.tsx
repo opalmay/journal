@@ -1,19 +1,19 @@
 import { Fragment } from "react";
 import { Link } from "react-router";
-import type { RecordDTO } from "@journal/shared";
+import { addDays, type RecordDTO } from "@journal/shared";
 import { Composer } from "../components/Composer.js";
 import { RecordCard } from "../components/RecordCard.js";
 import { MoodDot } from "../components/MoodPicker.js";
 import { TodayCard } from "../components/TodayCard.js";
 import { chipsFromRecord } from "../lib/metrics.js";
 import { Button, Chip, EmptyState, ErrorNote, Spinner } from "../components/ui.js";
-import { useDays, useRecordFeed, useSettings } from "../lib/queries.js";
+import { dayBoundaryOf } from "../lib/api.js";
+import { useDays, useRecordFeed, useSettings, useToday } from "../lib/queries.js";
 
-export function formatDayHeading(date: string): string {
-  const today = new Date().toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+/** `today` is the journal day, which past midnight is still yesterday's date. */
+export function formatDayHeading(date: string, today: string): string {
   if (date === today) return "Today";
-  if (date === yesterday) return "Yesterday";
+  if (date === addDays(today, -1)) return "Yesterday";
   return new Date(`${date}T12:00:00Z`).toLocaleDateString(undefined, {
     weekday: "long",
     day: "numeric",
@@ -36,7 +36,8 @@ export function groupByDay(records: RecordDTO[]): [string, RecordDTO[]][] {
 export function TimelinePage() {
   const feed = useRecordFeed({ limit: 50 });
   const { data: settings } = useSettings();
-  const timeZone = settings?.timeZone ?? "UTC";
+  const today = useToday();
+  const boundary = dayBoundaryOf(settings);
 
   const records = feed.data?.pages.flatMap((page) => page.records) ?? [];
   const groups = groupByDay(records);
@@ -44,7 +45,7 @@ export function TimelinePage() {
   // Day headings show the day's own mood and AI title, which live on the day
   // rows rather than the records — fetch just the span the feed has loaded.
   const dates = groups.map(([date]) => date);
-  const to = dates[0] ?? new Date().toISOString().slice(0, 10);
+  const to = dates[0] ?? today;
   const from = dates[dates.length - 1] ?? to;
   const { data: days } = useDays(from, to);
   const dayByDate = new Map((days ?? []).map((day) => [day.date, day]));
@@ -71,7 +72,7 @@ export function TimelinePage() {
                 to={`/day/${date}`}
                 className="text-sm font-semibold text-subtext1 hover:text-mauve"
               >
-                {formatDayHeading(date)}
+                {formatDayHeading(date, today)}
               </Link>
               {dayByDate.get(date)?.title && (
                 <span className="truncate text-sm text-overlay1">
@@ -86,7 +87,7 @@ export function TimelinePage() {
                 <RecordCard
                   key={record.id}
                   record={record}
-                  timeZone={timeZone}
+                  day={boundary}
                   aiEnabled={settings?.aiEnabled}
                   pickedUp={dayByDate.has(date) ? chipsFromRecord(dayByDate.get(date)!, record.id) : []}
                 />

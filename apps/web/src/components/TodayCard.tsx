@@ -1,7 +1,6 @@
 import { Link } from "react-router";
-import { dateKeyFromTimestamp } from "@journal/shared";
 import { Card } from "./ui.js";
-import { useDay, useSettings } from "../lib/queries.js";
+import { useDay, useSettings, useToday } from "../lib/queries.js";
 import { FIELD_LABELS, dayChips, missingFields } from "../lib/metrics.js";
 
 /**
@@ -10,7 +9,7 @@ import { FIELD_LABELS, dayChips, missingFields } from "../lib/metrics.js";
  */
 export function TodayCard() {
   const { data: settings } = useSettings();
-  const today = dateKeyFromTimestamp(Date.now(), settings?.timeZone ?? "UTC");
+  const today = useToday();
   const { data: day } = useDay(today);
   if (!settings || !day) return null;
 

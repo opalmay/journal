@@ -38,7 +38,7 @@ export async function registerReminderRoutes(app: FastifyInstance): Promise<void
   app.patch("/api/reminders", async (request) => {
     const patch = ReminderInput.parse(request.body);
     return view(
-      updateReminderSettings(db, { ...patch, appUrl: appUrlOf(request) }, config.JOURNAL_TZ),
+      updateReminderSettings(db, { ...patch, appUrl: appUrlOf(request) }, config.dayBoundary),
     );
   });
 
@@ -47,7 +47,7 @@ export async function registerReminderRoutes(app: FastifyInstance): Promise<void
     { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
     async (request, reply) => {
       const appUrl = appUrlOf(request);
-      const s = updateReminderSettings(db, { appUrl }, config.JOURNAL_TZ);
+      const s = updateReminderSettings(db, { appUrl }, config.dayBoundary);
       try {
         await app.notifier.send(s.topic, {
           title: "Journal",
@@ -66,6 +66,6 @@ export async function registerReminderRoutes(app: FastifyInstance): Promise<void
   // For a leaked link: the old topic stops receiving, and reminders stay off
   // until the new one is subscribed and confirmed.
   app.post("/api/reminders/topic", async () =>
-    view(updateReminderSettings(db, { topic: newTopic(), enabled: false }, config.JOURNAL_TZ)),
+    view(updateReminderSettings(db, { topic: newTopic(), enabled: false }, config.dayBoundary)),
   );
 }

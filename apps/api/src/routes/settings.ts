@@ -9,6 +9,7 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
     const { config, db } = app;
     return {
       timeZone: config.JOURNAL_TZ,
+      dayStartHour: config.JOURNAL_DAY_START_HOUR,
       aiEnabled: Boolean(app.worker),
       aiModels: { title: config.AI_TITLE_MODEL, day: config.AI_DAY_MODEL },
       maxUploadBytes: config.MAX_UPLOAD_BYTES,

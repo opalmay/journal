@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { RecordCard } from "../components/RecordCard.js";
 import { Button, Chip, EmptyState, ErrorNote, Spinner } from "../components/ui.js";
+import { dayBoundaryOf } from "../lib/api.js";
 import { useRecordFeed, useSettings, useTags } from "../lib/queries.js";
 
 export function SearchPage() {
@@ -99,7 +100,7 @@ export function SearchPage() {
             <RecordCard
               key={record.id}
               record={record}
-              timeZone={settings?.timeZone ?? "UTC"}
+              day={dayBoundaryOf(settings)}
               onTagClick={(tag) => setParam("tag", tag)}
               aiEnabled={settings?.aiEnabled}
             />

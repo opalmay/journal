@@ -2,7 +2,10 @@
   "name": "journal",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/*", "apps/*"],
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
     "dev": "concurrently -n api,web -c mauve,blue \"npm run -w @journal/api dev\" \"npm run -w @journal/web dev\"",
     "build": "npm run -w @journal/shared build && npm run -w @journal/api build && npm run -w @journal/web build",
@@ -10,7 +13,8 @@
     "test": "npm run -w @journal/api test",
     "typecheck": "tsc -b packages/shared apps/api apps/web",
     "db:generate": "npm run -w @journal/api db:generate",
-    "hash-password": "npm run -w @journal/api hash-password"
+    "hash-password": "npm run -w @journal/api hash-password",
+    "rehome-records": "npm run -w @journal/api rehome-records"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { dateKeyFromTimestamp, timeOfDay } from "@journal/shared";
+import type { DayBoundary } from "@journal/shared";
 import type { Db } from "../db/index.js";
 import type { Notification, Notifier } from "./ntfy.js";
 
@@ -65,7 +66,7 @@ export interface ReminderPatch {
 export function updateReminderSettings(
   db: Db,
   patch: ReminderPatch,
-  timeZone: string,
+  day: DayBoundary,
   now = Date.now(),
 ): ReminderSettings {
   const current = getReminderSettings(db);
@@ -80,7 +81,8 @@ export function updateReminderSettings(
   // should not fire one immediately: today counts as handled. Before the time,
   // today is open again.
   if (patch.enabled !== undefined || patch.time !== undefined) {
-    next.doneForDate = timeOfDay(now, timeZone) >= next.time ? dateKeyFromTimestamp(now, timeZone) : null;
+    next.doneForDate =
+      timeOfDay(now, day.timeZone) >= next.time ? dateKeyFromTimestamp(now, day) : null;
   }
   writeReminderSettings(db, next, now);
   return next;
@@ -117,7 +119,7 @@ export class ReminderScheduler {
 
   constructor(
     private readonly db: Db,
-    private readonly timeZone: string,
+    private readonly day: DayBoundary,
     private readonly notifier: Notifier,
     private readonly log: ReminderLogger,
   ) {}
@@ -139,9 +141,9 @@ export class ReminderScheduler {
     try {
       const settings = getReminderSettings(this.db);
       if (!settings.enabled) return "idle";
-      const today = dateKeyFromTimestamp(now, this.timeZone);
+      const today = dateKeyFromTimestamp(now, this.day);
       if (settings.doneForDate === today) return "idle";
-      if (timeOfDay(now, this.timeZone) < settings.time) return "idle";
+      if (timeOfDay(now, this.day.timeZone) < settings.time) return "idle";
 
       writeReminderSettings(this.db, { ...settings, doneForDate: today }, now);
       if (hasRecordsOn(this.db, today)) return "skipped";

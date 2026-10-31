@@ -5,7 +5,8 @@ import {
   useInfiniteQuery,
   type QueryClient,
 } from "@tanstack/react-query";
-import { api, type RecordFilters } from "./api.js";
+import { dateKeyFromTimestamp } from "@journal/shared";
+import { api, dayBoundaryOf, type RecordFilters } from "./api.js";
 
 export const keys = {
   me: ["me"] as const,
@@ -31,6 +32,15 @@ export function useMe() {
 
 export function useSettings() {
   return useQuery({ queryKey: keys.settings, queryFn: api.settings });
+}
+
+/**
+ * The journal day we are in now — not necessarily the calendar date, since a
+ * day runs to the configured start hour of the next morning.
+ */
+export function useToday() {
+  const { data: settings } = useSettings();
+  return dateKeyFromTimestamp(Date.now(), dayBoundaryOf(settings));
 }
 
 /** Preferences change what a day shows (the cycle row), so days refetch too. */

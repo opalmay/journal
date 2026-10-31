@@ -130,7 +130,7 @@ export async function registerRecordRoutes(app: FastifyInstance): Promise<void> 
           tags: input.tags,
           timestamp,
           source: "web",
-          timeZone: config.JOURNAL_TZ,
+          day: config.dayBoundary,
         });
         for (const file of files) {
           repo.insertMedia(db, {
@@ -159,7 +159,7 @@ export async function registerRecordRoutes(app: FastifyInstance): Promise<void> 
   app.patch("/api/records/:id", async (request, reply) => {
     const id = (request.params as { id: string }).id;
     const patch = UpdateRecordInput.parse(request.body);
-    const result = repo.updateRecord(db, id, patch, config.JOURNAL_TZ);
+    const result = repo.updateRecord(db, id, patch, config.dayBoundary);
     if (!result) return reply.code(404).send({ error: "not_found" });
 
     // Editing the text invalidates the AI title; a manual title wins outright.

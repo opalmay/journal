@@ -1,8 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { DateKeySchema, addDays, normalizeTag, timeOfDay } from "@journal/shared";
-import type { DayDTO, RecordDTO } from "@journal/shared";
+import { DateKeySchema, addDays, formatDayStart, normalizeTag, timeOfDay } from "@journal/shared";
+import type { DayBoundary, DayDTO, RecordDTO } from "@journal/shared";
 import type { Db } from "../db/index.js";
 import * as repo from "../db/repo.js";
 
@@ -71,13 +71,19 @@ function dayOf(day: DayDTO) {
   };
 }
 
-export function buildMcpServer(db: Db, timeZone: string): McpServer {
+export function buildMcpServer(db: Db, day: DayBoundary): McpServer {
+  const { timeZone } = day;
   const server = new McpServer(
     { name: "journal", version: "1.0.0" },
     {
       instructions:
         "A personal journal. Dates are YYYY-MM-DD in the journal's timezone " +
-        `(${timeZone}). Mood and energy are 1–5; sleep and naps are in hours.`,
+        `(${timeZone}). Mood and energy are 1–5; sleep and naps are in hours.` +
+        (day.startHour > 0
+          ? ` A journal day runs from ${formatDayStart(day.startHour)} to ` +
+            `${formatDayStart(day.startHour)} the next morning, so an entry written ` +
+            "after midnight belongs to the day before and its time reads as a small-hours time."
+          : ""),
     },
   );
 

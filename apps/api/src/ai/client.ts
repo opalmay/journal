@@ -43,6 +43,8 @@ export interface Summarizer {
 
 export interface DaySummaryInput {
   date: string;
+  /** `HH:mm` the journal day starts at, or null when days start at midnight. */
+  dayStartsAt: string | null;
   mood: number | null;
   /** One line per record, already in time order: `#n HH:mm — text`. */
   lines: string[];
@@ -295,8 +297,12 @@ export class ClaudeSummarizer implements Summarizer {
       ? `\nTags the author already put on this day: ${input.existingTags.join(", ")}. Do not repeat them.`
       : "";
     const known = Object.entries(input.userMetrics).filter(([field]) => field !== "mood");
+    const window = input.dayStartsAt
+      ? ` This day runs from ${input.dayStartsAt} to ${input.dayStartsAt} the next morning:` +
+        ` entries marked "after midnight" are its late-night end, not its start.`
+      : "";
     const prompt = [
-      `Summarize this journal day: ${input.date}.`,
+      `Summarize this journal day: ${input.date}.${window}`,
       `Mood: ${mood}.${existing}`,
       ...(known.length
         ? [`Recorded by the author: ${known.map(([f, v]) => `${f} ${v}`).join(", ")}.`]

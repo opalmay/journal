@@ -95,7 +95,7 @@ export async function buildApp(config: Config, options: BuildOptions = {}): Prom
 
   const notifier = options.notifier ?? new NtfyNotifier(config.ntfyUrl, config.NTFY_TOKEN);
   app.decorate("notifier", notifier);
-  const reminders = new ReminderScheduler(db, config.JOURNAL_TZ, notifier, app.log);
+  const reminders = new ReminderScheduler(db, config.dayBoundary, notifier, app.log);
   app.addHook("onReady", async () => reminders.start());
   app.addHook("onClose", async () => reminders.stop());
 

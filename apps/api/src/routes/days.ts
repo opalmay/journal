@@ -1,5 +1,11 @@
 import type { FastifyInstance } from "fastify";
-import { DateKeySchema, DayRangeQuery, UpdateDayInput, addDays } from "@journal/shared";
+import {
+  DateKeySchema,
+  DayRangeQuery,
+  UpdateDayInput,
+  addDays,
+  dateKeyFromTimestamp,
+} from "@journal/shared";
 import * as repo from "../db/repo.js";
 import { enqueueDaySummary } from "../ai/jobs.js";
 
@@ -9,7 +15,7 @@ export async function registerDayRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/days", async (request) => {
     const raw = request.query as Record<string, string | undefined>;
     // Default to the last 90 days so the calendar and timeline have something.
-    const today = new Date().toISOString().slice(0, 10);
+    const today = dateKeyFromTimestamp(Date.now(), config.dayBoundary);
     const query = DayRangeQuery.parse({
       from: raw.from ?? addDays(today, -90),
       to: raw.to ?? today,

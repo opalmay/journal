@@ -8,7 +8,15 @@ import { AiMark, MetricsPanel } from "../components/MetricsPanel.js";
 import { chipsFromRecord } from "../lib/metrics.js";
 import { TagInput } from "../components/TagInput.js";
 import { Button, Card, EmptyState, ErrorNote, Spinner } from "../components/ui.js";
-import { useDay, useRegenerate, useSettings, useTags, useUpdateDay } from "../lib/queries.js";
+import { dayBoundaryOf } from "../lib/api.js";
+import {
+  useDay,
+  useRegenerate,
+  useSettings,
+  useTags,
+  useToday,
+  useUpdateDay,
+} from "../lib/queries.js";
 import { formatDayHeading } from "./Timeline.js";
 
 export function DayPage() {
@@ -18,6 +26,7 @@ export function DayPage() {
   const regenerate = useRegenerate();
   const { data: settings } = useSettings();
   const { data: knownTags } = useTags();
+  const today = useToday();
 
   const [note, setNote] = useState("");
   const [noteDirty, setNoteDirty] = useState(false);
@@ -55,7 +64,7 @@ export function DayPage() {
 
       <Card className="p-4">
         <div className="flex flex-wrap items-baseline gap-2">
-          <h1 className="text-lg font-semibold text-text">{formatDayHeading(date)}</h1>
+          <h1 className="text-lg font-semibold text-text">{formatDayHeading(date, today)}</h1>
           <span className="font-mono text-xs text-overlay0">{date}</span>
           {settings?.aiEnabled && (
             <Button
@@ -124,7 +133,7 @@ export function DayPage() {
             <RecordCard
               key={record.id}
               record={record}
-              timeZone={settings?.timeZone ?? "UTC"}
+              day={dayBoundaryOf(settings)}
               aiEnabled={settings?.aiEnabled}
               pickedUp={chipsFromRecord(data, record.id)}
             />

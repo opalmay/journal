@@ -72,7 +72,44 @@ describe("records", () => {
     expect(record.timestamp).toBeLessThanOrEqual(Date.now());
   });
 
-  it("re-homes a record when its timestamp crosses local midnight", async () => {
+  it("files an entry written after midnight on the day it belongs to", async () => {
+    // 2026-09-09 01:30 Berlin, inside the 04:00 day boundary.
+    const late = (
+      await createRecord({ text: "still up", timestamp: Date.parse("2026-09-08T23:30:00Z") })
+    ).json();
+    expect(late.dayDate).toBe("2026-09-08");
+
+    // 2026-09-09 04:30 Berlin, past it.
+    const early = (
+      await createRecord({ text: "up early", timestamp: Date.parse("2026-09-09T02:30:00Z") })
+    ).json();
+    expect(early.dayDate).toBe("2026-09-09");
+
+    const day = await ctx.app
+      .inject({ method: "GET", url: "/api/days/2026-09-08", headers: auth() })
+      .then((r) => r.json());
+    expect(day.records.map((r: { text: string }) => r.text)).toEqual(["still up"]);
+  });
+
+  it("keeps days at midnight when the boundary is turned off", async () => {
+    const midnight = await makeContext({ JOURNAL_DAY_START_HOUR: "0" });
+    try {
+      const login = midnight.cookie;
+      const late = await midnight.app
+        .inject({
+          method: "POST",
+          url: "/api/records",
+          headers: { cookie: login },
+          payload: { text: "still up", timestamp: Date.parse("2026-09-08T23:30:00Z") },
+        })
+        .then((r) => r.json());
+      expect(late.dayDate).toBe("2026-09-09");
+    } finally {
+      await midnight.close();
+    }
+  });
+
+  it("re-homes a record when its timestamp crosses the day boundary", async () => {
     const record = (
       await createRecord({ text: "late night", timestamp: Date.parse("2026-09-08T21:30:00Z") })
     ).json();
@@ -82,7 +119,7 @@ describe("records", () => {
       method: "PATCH",
       url: `/api/records/${record.id}`,
       headers: auth(),
-      payload: { timestamp: Date.parse("2026-09-08T22:30:00Z") }, // 00:30 Berlin, next day
+      payload: { timestamp: Date.parse("2026-09-09T02:30:00Z") }, // 04:30 Berlin, next day
     });
     expect(moved.json().dayDate).toBe("2026-09-09");
 

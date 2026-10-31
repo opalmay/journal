@@ -26,7 +26,7 @@ export async function registerMcpRoutes(app: FastifyInstance): Promise<void> {
           .send({ error: "unauthorized" });
       }
 
-      const server = buildMcpServer(db, config.JOURNAL_TZ);
+      const server = buildMcpServer(db, config.dayBoundary);
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
         enableJsonResponse: true,

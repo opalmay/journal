@@ -1,4 +1,11 @@
-import type { DayDTO, DayDetailDTO, DayMetrics, RecordDTO, TagDTO } from "@journal/shared";
+import type {
+  DayBoundary,
+  DayDTO,
+  DayDetailDTO,
+  DayMetrics,
+  RecordDTO,
+  TagDTO,
+} from "@journal/shared";
 
 export class ApiError extends Error {
   constructor(
@@ -45,6 +52,8 @@ export interface RecordPage {
 
 export interface Settings {
   timeZone: string;
+  /** Local hour a journal day starts; 0 is midnight. */
+  dayStartHour: number;
   aiEnabled: boolean;
   aiModels: { title: string; day: string };
   maxUploadBytes: number;
@@ -54,6 +63,11 @@ export interface Settings {
   jobs: Record<string, number>;
   connectedApps: { id: string; name: string }[];
   trackCycle: boolean;
+}
+
+/** The journal's day boundary, falling back to plain UTC days until settings load. */
+export function dayBoundaryOf(settings?: Settings): DayBoundary {
+  return { timeZone: settings?.timeZone ?? "UTC", startHour: settings?.dayStartHour ?? 0 };
 }
 
 export interface Reminders {

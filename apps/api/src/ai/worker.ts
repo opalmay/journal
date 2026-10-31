@@ -4,7 +4,7 @@ import type { Summarizer } from "./client.js";
 import { claimNextJob, completeJob, failJob, requeueStaleJobs, type JobRow } from "./jobs.js";
 import * as repo from "../db/repo.js";
 import { transaction } from "../db/index.js";
-import { timeOfDay } from "@journal/shared";
+import { formatDayStart, isAfterMidnight, timeOfDay } from "@journal/shared";
 
 const POLL_INTERVAL_MS = 2_000;
 
@@ -80,11 +80,14 @@ export class AiWorker {
     const records = repo.listRecordsForDay(this.db, job.target_id);
     if (records.length === 0) return;
 
+    const boundary = this.config.dayBoundary;
     const lines = records.map((r, i) => {
-      const time = timeOfDay(r.timestamp, this.config.JOURNAL_TZ);
+      const time = timeOfDay(r.timestamp, boundary.timeZone);
+      // The day runs past midnight, so say which times are on the far side of it.
+      const night = isAfterMidnight(r.timestamp, boundary) ? " (after midnight)" : "";
       const tags = r.tags.length ? ` [${r.tags.join(", ")}]` : "";
       const body = r.text.trim() || `(${r.media.map((m) => m.kind).join(", ") || "empty entry"})`;
-      return `#${i + 1} ${time} — ${body}${tags}`;
+      return `#${i + 1} ${time}${night} — ${body}${tags}`;
     });
 
     // Only the user's own values are context; anything the job wrote last
@@ -96,6 +99,7 @@ export class AiWorker {
       .filter((f) => !owned.includes(f));
     const result = await this.summarizer.daySummary({
       date: day.date,
+      dayStartsAt: boundary.startHour > 0 ? formatDayStart(boundary.startHour) : null,
       mood: typeof userMetrics.mood === "number" ? userMetrics.mood : null,
       lines,
       existingTags: day.tags,

@@ -9,7 +9,8 @@
     "build": "tsc -b && cp -r src/db/migrations dist/db/",
     "start": "node --env-file-if-exists=../../.env dist/server.js",
     "test": "vitest run",
-    "hash-password": "tsx src/scripts/hash-password.ts"
+    "hash-password": "tsx src/scripts/hash-password.ts",
+    "rehome-records": "tsx --env-file-if-exists=../../.env src/scripts/rehome-records.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
