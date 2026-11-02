@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DATE_KEY_RE, normalizeTag } from "./dates.js";
+import { CLOCK_TIME_RE, DATE_KEY_RE, normalizeTag } from "./dates.js";
 
 export const Mood = z.number().int().min(1).max(5);
 export type Mood = z.infer<typeof Mood>;
@@ -13,9 +13,17 @@ export type Appetite = z.infer<typeof Appetite>;
 export const Social = z.enum(["none", "some", "a_lot"]);
 export type Social = z.infer<typeof Social>;
 
+/** A time of day, 24-hour `HH:MM`, as the day page's fields hand it over. */
+export const ClockTime = z.string().trim().regex(CLOCK_TIME_RE, "expected HH:MM");
+export type ClockTime = z.infer<typeof ClockTime>;
+
 /** Every dimension of a day besides mood. All optional: most days mention few. */
 export const DayMetrics = z.object({
   energy: z.number().int().min(1).max(5).nullable(),
+  /** When the night's sleep began and ended; the hours follow from the pair. */
+  sleepStart: ClockTime.nullable(),
+  sleepEnd: ClockTime.nullable(),
+  /** Hours slept. Worked out from the times above whenever both are known. */
   sleepHours: z.number().min(0).max(24).nullable(),
   sleepQuality: SleepQuality.nullable(),
   sleepWakings: z.number().int().min(0).max(20).nullable(),

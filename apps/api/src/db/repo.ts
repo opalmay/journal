@@ -1,7 +1,7 @@
 import type { Db } from "./index.js";
 import { transaction } from "./index.js";
 import { uuidv7, randomUUID } from "../ids.js";
-import { METRIC_FIELDS, dateKeyFromTimestamp, normalizeTag } from "@journal/shared";
+import { METRIC_FIELDS, dateKeyFromTimestamp, hoursBetween, normalizeTag } from "@journal/shared";
 import type { DayBoundary } from "@journal/shared";
 import type {
   AiField,
@@ -24,6 +24,8 @@ interface DayRow {
   note: string | null;
   mood: number | null;
   energy: number | null;
+  sleep_start: string | null;
+  sleep_end: string | null;
   sleep_hours: number | null;
   sleep_quality: string | null;
   sleep_wakings: number | null;
@@ -83,6 +85,8 @@ export function ensureDay(db: Db, date: string, now = Date.now()): void {
 /** The `days` column behind each metric. */
 const METRIC_COLUMNS: Record<keyof DayMetrics, keyof DayRow & string> = {
   energy: "energy",
+  sleepStart: "sleep_start",
+  sleepEnd: "sleep_end",
   sleepHours: "sleep_hours",
   sleepQuality: "sleep_quality",
   sleepWakings: "sleep_wakings",
@@ -130,11 +134,19 @@ function toDayDTO(
   const cycleDayDerived = metrics.cycleDay === null && derivedCycleDay !== null;
   if (cycleDayDerived) metrics.cycleDay = derivedCycleDay;
 
+  // A night given as the two times it ran between carries its own length; the
+  // stored figure is what a night described only as a number of hours leaves.
+  const hoursFromTimes = hoursBetween(metrics.sleepStart, metrics.sleepEnd);
+  if (hoursFromTimes !== null) metrics.sleepHours = hoursFromTimes;
+  // Hours that follow from the times belong to the times, so they are flagged
+  // neither as the summary's own nor as something it failed to find.
+  const derivedHours = (f: AiField) => f === "sleepHours" && hoursFromTimes !== null;
+
   const owned = userFields(row);
   const extracted = row.metrics_extracted_at !== null;
   const asked = extractableFields(prefs);
   const aiFields = extracted
-    ? asked.filter((f) => !owned.has(f) && row[AI_COLUMNS[f]] !== null)
+    ? asked.filter((f) => !owned.has(f) && !derivedHours(f) && row[AI_COLUMNS[f]] !== null)
     : [];
   const sources = JSON.parse(row.metric_sources) as Partial<Record<AiField, string[]>>;
   return {
@@ -153,6 +165,7 @@ function toDayDTO(
           (f) =>
             !owned.has(f) &&
             row[AI_COLUMNS[f]] === null &&
+            !derivedHours(f) &&
             !(f === "cycleDay" && cycleDayDerived),
         )
       : [],

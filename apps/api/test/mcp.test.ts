@@ -229,7 +229,10 @@ describe("MCP tools", () => {
       tags: ["holiday"],
       metrics: { energy: 3, sleepHours: 7.5, napTimes: "13:00–14:00", cycleDay: 12 },
     });
-    await patchDay("2026-09-10", { mood: 2, metrics: { sleepHours: 5 } });
+    await patchDay("2026-09-10", {
+      mood: 2,
+      metrics: { sleepStart: "01:00", sleepEnd: "06:00" },
+    });
   });
   afterEach(async () => {
     await ctx.close();
@@ -241,6 +244,7 @@ describe("MCP tools", () => {
     const day = data.days[0];
     expect(day).toMatchObject({ mood: 4, energy: 3, tags: ["holiday"] });
     expect(day.sleep).toMatchObject({ hours: 7.5, napTimes: "13:00–14:00" });
+    expect(data.days[1].sleep).toMatchObject({ from: "01:00", to: "06:00", hours: 5 });
     expect(day.entries).toEqual([
       { time: "10:15", title: null, text: "walked by the river, felt good", tags: ["walk"] },
     ]);

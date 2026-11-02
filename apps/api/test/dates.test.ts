@@ -3,8 +3,10 @@ import {
   addDays,
   dateKeyFromTimestamp,
   formatDayStart,
+  hoursBetween,
   isAfterMidnight,
   normalizeTag,
+  parseClockTime,
   timeOfDay,
 } from "@journal/shared";
 
@@ -83,6 +85,46 @@ describe("addDays", () => {
     expect(addDays("2026-01-31", 1)).toBe("2026-02-01");
     expect(addDays("2026-01-01", -1)).toBe("2025-12-31");
     expect(addDays("2024-02-28", 1)).toBe("2024-02-29");
+  });
+});
+
+describe("parseClockTime", () => {
+  it("reads a time however it was typed", () => {
+    expect(parseClockTime("22:30")).toBe("22:30");
+    expect(parseClockTime(" 2230 ")).toBe("22:30");
+    expect(parseClockTime("22.30")).toBe("22:30");
+    expect(parseClockTime("7")).toBe("07:00");
+    expect(parseClockTime("730")).toBe("07:30");
+    expect(parseClockTime("7:05")).toBe("07:05");
+    expect(parseClockTime("0:00")).toBe("00:00");
+  });
+
+  it("refuses what is not a time", () => {
+    expect(parseClockTime("")).toBe(null);
+    expect(parseClockTime("25:00")).toBe(null);
+    expect(parseClockTime("22:70")).toBe(null);
+    expect(parseClockTime("10pm")).toBe(null);
+    expect(parseClockTime("1:2:3")).toBe(null);
+  });
+});
+
+describe("hoursBetween", () => {
+  it("counts a night across midnight", () => {
+    expect(hoursBetween("22:30", "07:00")).toBe(8.5);
+    expect(hoursBetween("23:45", "06:15")).toBe(6.5);
+    expect(hoursBetween("01:00", "09:20")).toBe(8.33);
+  });
+
+  it("is zero for two of the same time, never 24", () => {
+    expect(hoursBetween("07:00", "07:00")).toBe(0);
+  });
+
+  it("needs both times, well formed", () => {
+    expect(hoursBetween("22:30", null)).toBe(null);
+    expect(hoursBetween(null, "07:00")).toBe(null);
+    expect(hoursBetween("", "07:00")).toBe(null);
+    expect(hoursBetween("10pm", "07:00")).toBe(null);
+    expect(hoursBetween("24:00", "07:00")).toBe(null);
   });
 });
 
