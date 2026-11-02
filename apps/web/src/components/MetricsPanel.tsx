@@ -202,8 +202,9 @@ export function MetricsPanel({
           ai("sleepHours") ||
           ai("sleepQuality") ||
           ai("sleepWakings") ||
-          ai("napHours") ||
-          ai("napTimes")
+          ai("napStart") ||
+          ai("napEnd") ||
+          ai("napHours")
         }
       >
         {/* The night is given as the two times it ran between; the hours follow. */}
@@ -244,23 +245,23 @@ export function MetricsPanel({
             onCommit={(v) => set("sleepWakings", toNumber(v))}
           />
         </label>
-        <label className="flex items-center gap-1 text-xs text-overlay1">
-          nap
-          <CommitInput
-            type="number"
-            step={0.5}
-            value={m.napHours}
-            placeholder="h"
-            className="w-14"
-            onCommit={(v) => set("napHours", toNumber(v))}
-          />
-          <CommitInput
-            value={m.napTimes}
-            placeholder="13:00–14:00"
-            className="w-28"
-            onCommit={(v) => set("napTimes", v || null)}
-          />
-        </label>
+        {/* A nap is given the same way as the night, and so is its length. */}
+        <span className="flex items-center gap-1 text-xs text-overlay1">
+          nap from
+          <ClockInput value={m.napStart} label="nap from" onCommit={(v) => set("napStart", v)} />
+          to
+          <ClockInput value={m.napEnd} label="nap until" onCommit={(v) => set("napEnd", v)} />
+          {m.napHours !== null && (
+            <span
+              className="text-subtext0"
+              title={
+                m.napStart && m.napEnd ? "Worked out from the times" : "Napped, as the entries gave it"
+              }
+            >
+              {hoursLabel(m.napHours)}
+            </span>
+          )}
+        </span>
       </Row>
       <Row label="appetite" ai={ai("appetite")}>
         <Segmented value={m.appetite} options={APPETITE} onChange={(v) => set("appetite", v)} />

@@ -227,7 +227,13 @@ describe("MCP tools", () => {
     await patchDay("2026-09-08", {
       mood: 4,
       tags: ["holiday"],
-      metrics: { energy: 3, sleepHours: 7.5, napTimes: "13:00–14:00", cycleDay: 12 },
+      metrics: {
+        energy: 3,
+        sleepHours: 7.5,
+        napStart: "13:00",
+        napEnd: "14:00",
+        cycleDay: 12,
+      },
     });
     await patchDay("2026-09-10", {
       mood: 2,
@@ -243,7 +249,12 @@ describe("MCP tools", () => {
     expect(data.days.map((d: { date: string }) => d.date)).toEqual(["2026-09-08", "2026-09-10"]);
     const day = data.days[0];
     expect(day).toMatchObject({ mood: 4, energy: 3, tags: ["holiday"] });
-    expect(day.sleep).toMatchObject({ hours: 7.5, napTimes: "13:00–14:00" });
+    expect(day.sleep).toMatchObject({
+      hours: 7.5,
+      napFrom: "13:00",
+      napTo: "14:00",
+      napHours: 1,
+    });
     expect(data.days[1].sleep).toMatchObject({ from: "01:00", to: "06:00", hours: 5 });
     expect(day.entries).toEqual([
       { time: "10:15", title: null, text: "walked by the river, felt good", tags: ["walk"] },

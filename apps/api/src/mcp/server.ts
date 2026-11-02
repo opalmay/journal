@@ -66,8 +66,9 @@ function dayOf(day: DayDTO) {
       hours: day.metrics.sleepHours,
       quality: day.metrics.sleepQuality,
       wakings: day.metrics.sleepWakings,
+      napFrom: day.metrics.napStart,
+      napTo: day.metrics.napEnd,
       napHours: day.metrics.napHours,
-      napTimes: day.metrics.napTimes,
     },
     tags: day.tags,
   };
@@ -81,7 +82,7 @@ export function buildMcpServer(db: Db, day: DayBoundary): McpServer {
       instructions:
         "A personal journal. Dates are YYYY-MM-DD in the journal's timezone " +
         `(${timeZone}). Mood and energy are 1–5; sleep and naps are in hours, and ` +
-        "a night's `from` and `to` are 24-hour clock times." +
+        "the `from` and `to` of a night or a nap are 24-hour clock times." +
         (day.startHour > 0
           ? ` A journal day runs from ${formatDayStart(day.startHour)} to ` +
             `${formatDayStart(day.startHour)} the next morning, so an entry written ` +

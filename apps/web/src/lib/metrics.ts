@@ -9,8 +9,9 @@ export const FIELD_LABELS: Record<AiField, string> = {
   sleepHours: "hours slept",
   sleepQuality: "sleep quality",
   sleepWakings: "night wakings",
+  napStart: "nap times",
+  napEnd: "nap times",
   napHours: "naps",
-  napTimes: "nap times",
   appetite: "appetite",
   social: "social contact",
   cycleDay: "cycle day",
@@ -29,8 +30,9 @@ const ORDER: AiField[] = [
   "sleepHours",
   "sleepQuality",
   "sleepWakings",
+  "napStart",
+  "napEnd",
   "napHours",
-  "napTimes",
   "appetite",
   "social",
   "cycleDay",
@@ -68,10 +70,12 @@ export function metricChip(field: AiField, value: number | string): string {
       return `sleep ${value}`;
     case "sleepWakings":
       return Number(value) === 0 ? "slept through" : `woke ${value}×`;
+    case "napStart":
+      return `nap from ${value}`;
+    case "napEnd":
+      return `nap until ${value}`;
     case "napHours":
       return `nap ${hoursLabel(Number(value))}`;
-    case "napTimes":
-      return `napped ${value}`;
     case "appetite":
       return `appetite ${value}`;
     case "social":
@@ -93,28 +97,47 @@ function valueOf(day: DayDTO, field: AiField): number | string | null {
   return field === "mood" ? day.mood : day.metrics[field];
 }
 
+/** The two stretches of sleep entered as a pair of times, with their lengths. */
+const RANGES = [
+  { start: "sleepStart", end: "sleepEnd", hours: "sleepHours", verb: "slept" },
+  { start: "napStart", end: "napEnd", hours: "napHours", verb: "napped" },
+] as const satisfies readonly { start: AiField; end: AiField; hours: AiField; verb: string }[];
+
+type Range = (typeof RANGES)[number];
+
 /**
- * A night entered as two times reads as one chip, "slept 22:30–07:00 · 8.5h":
- * the hours follow from the pair, so they are not also a chip of their own.
+ * A stretch entered as two times reads as one chip, "slept 22:30–07:00 ·
+ * 8h 30m": the hours follow from the pair, so they are not a chip of their
+ * own. Null while either end is still missing.
  */
-function sleepRange(day: DayDTO): string | null {
-  const { sleepStart, sleepEnd, sleepHours } = day.metrics;
-  if (!sleepStart || !sleepEnd) return null;
-  const length = sleepHours === null ? "" : ` · ${hoursLabel(sleepHours)}`;
-  return `slept ${sleepStart}–${sleepEnd}${length}`;
+function rangeLabel(day: DayDTO, range: Range): string | null {
+  const [from, to, length] = [range.start, range.end, range.hours].map((f) => valueOf(day, f));
+  if (from === null || to === null) return null;
+  return `${range.verb} ${from}–${to}${length === null ? "" : ` · ${hoursLabel(Number(length))}`}`;
 }
 
-/** Fields the range chip speaks for; it is keyed on `sleepStart`. */
-const IN_SLEEP_RANGE: AiField[] = ["sleepEnd", "sleepHours"];
+/** The range chips a day has, keyed on the start field each one stands for. */
+function rangeChips(day: DayDTO): { labels: Map<AiField, string>; folded: Set<AiField> } {
+  const labels = new Map<AiField, string>();
+  const folded = new Set<AiField>();
+  for (const range of RANGES) {
+    const label = rangeLabel(day, range);
+    if (label === null) continue;
+    labels.set(range.start, label);
+    folded.add(range.end).add(range.hours);
+  }
+  return { labels, folded };
+}
 
 /** Every field the day has a value for, in display order. */
 export function dayChips(day: DayDTO, trackCycle: boolean): { field: AiField; label: string }[] {
-  const range = sleepRange(day);
+  const { labels, folded } = rangeChips(day);
   return ORDER.flatMap((field) => {
-    if (range && IN_SLEEP_RANGE.includes(field)) return [];
+    if (folded.has(field)) return [];
+    const range = labels.get(field);
+    if (range !== undefined) return [{ field, label: range }];
     const value = valueOf(day, field);
     if (value === null || (field === "cycleDay" && !trackCycle)) return [];
-    if (range && field === "sleepStart") return [{ field, label: range }];
     const label = metricChip(field, value);
     return [{ field, label: field === "cycleDay" && day.cycleDayDerived ? `≈ ${label}` : label }];
   });
@@ -122,12 +145,14 @@ export function dayChips(day: DayDTO, trackCycle: boolean): { field: AiField; la
 
 /** What the day summary took from one entry, as chip labels. */
 export function chipsFromRecord(day: DayDTO, recordId: string): string[] {
-  const range = sleepRange(day);
+  const { labels, folded } = rangeChips(day);
   const fromRecord = (field: AiField) => day.metricSources[field]?.includes(recordId) ?? false;
   return ORDER.flatMap((field) => {
-    if (range && IN_SLEEP_RANGE.includes(field)) return [];
-    if (range && field === "sleepStart") {
-      return fromRecord("sleepStart") || fromRecord("sleepEnd") ? [range] : [];
+    if (folded.has(field)) return [];
+    const range = labels.get(field);
+    if (range !== undefined) {
+      const { end } = RANGES.find((r) => r.start === field)!;
+      return fromRecord(field) || fromRecord(end) ? [range] : [];
     }
     const value = valueOf(day, field);
     if (value === null || !fromRecord(field)) return [];
@@ -136,13 +161,15 @@ export function chipsFromRecord(day: DayDTO, recordId: string): string[] {
 }
 
 /**
- * What to name in the "not mentioned" line. The two sleep times are one thing
+ * What to name in the "not mentioned" line. Each pair of times is one thing
  * there, and the hours they would have given are not named on top of them.
  */
 export function missingFields(day: DayDTO, trackCycle: boolean): AiField[] {
+  const starts = new Map<AiField, AiField>(RANGES.map((r) => [r.end, r.start]));
   const missing = day.metricsMissing
     .filter((f) => trackCycle || f !== "cycleDay")
-    .map((f): AiField => (f === "sleepEnd" ? "sleepStart" : f));
-  const noTimes = missing.includes("sleepStart");
-  return [...new Set(missing)].filter((f) => !(noTimes && f === "sleepHours"));
+    .map((f): AiField => starts.get(f) ?? f);
+  return [...new Set(missing)].filter(
+    (f) => !RANGES.some((r) => r.hours === f && missing.includes(r.start)),
+  );
 }

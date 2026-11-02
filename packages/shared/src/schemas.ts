@@ -27,8 +27,10 @@ export const DayMetrics = z.object({
   sleepHours: z.number().min(0).max(24).nullable(),
   sleepQuality: SleepQuality.nullable(),
   sleepWakings: z.number().int().min(0).max(20).nullable(),
+  /** When a nap began and ended; its length follows from the pair. */
+  napStart: ClockTime.nullable(),
+  napEnd: ClockTime.nullable(),
   napHours: z.number().min(0).max(24).nullable(),
-  napTimes: z.string().trim().max(100).nullable(),
   appetite: Appetite.nullable(),
   social: Social.nullable(),
   cycleDay: z.number().int().min(1).max(60).nullable(),

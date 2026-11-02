@@ -114,15 +114,15 @@ describe("day metrics", () => {
     ctx.summarizer.metrics = {
       sleepHours: 7,
       sleepWakings: 1,
-      napHours: 1,
-      napTimes: "14:00–15:00",
+      napStart: "14:00",
+      napEnd: "15:00",
       appetite: "high",
     };
     ctx.summarizer.sources = {
       sleepHours: [1, 2],
       sleepWakings: [1],
-      napHours: [2],
-      napTimes: [2],
+      napStart: [2],
+      napEnd: [2],
       appetite: [2],
     };
     await summarize();
@@ -134,15 +134,17 @@ describe("day metrics", () => {
     expect(day.metrics).toMatchObject({
       sleepHours: 7,
       sleepWakings: 1,
+      napStart: "14:00",
+      napEnd: "15:00",
+      // The nap's hours come from its times, not from the summary.
       napHours: 1,
-      napTimes: "14:00–15:00",
       appetite: "low",
     });
     expect(day.metricSources).toEqual({
       sleepHours: [first.id, second.id],
       sleepWakings: [first.id],
-      napHours: [second.id],
-      napTimes: [second.id],
+      napStart: [second.id],
+      napEnd: [second.id],
     });
   });
 
