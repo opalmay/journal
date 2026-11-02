@@ -29,8 +29,9 @@ interface DayRow {
   sleep_hours: number | null;
   sleep_quality: string | null;
   sleep_wakings: number | null;
+  nap_start: string | null;
+  nap_end: string | null;
   nap_hours: number | null;
-  nap_times: string | null;
   appetite: string | null;
   social: string | null;
   cycle_day: number | null;
@@ -90,8 +91,9 @@ const METRIC_COLUMNS: Record<keyof DayMetrics, keyof DayRow & string> = {
   sleepHours: "sleep_hours",
   sleepQuality: "sleep_quality",
   sleepWakings: "sleep_wakings",
+  napStart: "nap_start",
+  napEnd: "nap_end",
   napHours: "nap_hours",
-  napTimes: "nap_times",
   appetite: "appetite",
   social: "social",
   cycleDay: "cycle_day",
@@ -134,13 +136,16 @@ function toDayDTO(
   const cycleDayDerived = metrics.cycleDay === null && derivedCycleDay !== null;
   if (cycleDayDerived) metrics.cycleDay = derivedCycleDay;
 
-  // A night given as the two times it ran between carries its own length; the
-  // stored figure is what a night described only as a number of hours leaves.
-  const hoursFromTimes = hoursBetween(metrics.sleepStart, metrics.sleepEnd);
-  if (hoursFromTimes !== null) metrics.sleepHours = hoursFromTimes;
-  // Hours that follow from the times belong to the times, so they are flagged
-  // neither as the summary's own nor as something it failed to find.
-  const derivedHours = (f: AiField) => f === "sleepHours" && hoursFromTimes !== null;
+  // Sleep given as the two times it ran between carries its own length; the
+  // stored figure is what a night or nap described only as hours leaves.
+  const night = hoursBetween(metrics.sleepStart, metrics.sleepEnd);
+  const nap = hoursBetween(metrics.napStart, metrics.napEnd);
+  if (night !== null) metrics.sleepHours = night;
+  if (nap !== null) metrics.napHours = nap;
+  // Hours that follow from a pair of times belong to the times, so they are
+  // flagged neither as the summary's own nor as something it failed to find.
+  const derivedHours = (f: AiField) =>
+    (f === "sleepHours" && night !== null) || (f === "napHours" && nap !== null);
 
   const owned = userFields(row);
   const extracted = row.metrics_extracted_at !== null;

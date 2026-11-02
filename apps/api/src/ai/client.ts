@@ -126,11 +126,19 @@ const METRIC_JSON_SCHEMA: Record<AiField, Record<string, unknown>> = {
     "Times the author woke up during the night and went back to sleep. 0 only if they " +
       "said they slept through.",
   ),
-  napHours: nullable({ type: "number" }, "Total hours napped during the day."),
-  napTimes: nullable(
+  napStart: nullable(
     { type: "string" },
-    "When each nap was, as 24-hour HH:mm–HH:mm ranges separated by ', ', e.g. " +
-      "'13:00–14:30'. Only if a start and an end were given or can be worked out.",
+    "Time a nap began, 24-hour HH:mm, e.g. '13:00'. Only for a single nap, and only " +
+      "if the time was given or can be worked out.",
+  ),
+  napEnd: nullable(
+    { type: "string" },
+    "Time that nap ended, 24-hour HH:mm, on the same terms as napStart.",
+  ),
+  napHours: nullable(
+    { type: "number" },
+    "Total hours napped during the day. Leave it null when napStart and napEnd cover " +
+      "the nap, since the hours follow from the pair.",
   ),
   appetite: nullable({ type: "string", enum: ["low", "normal", "high"] }, "Appetite."),
   social: nullable(
@@ -197,9 +205,11 @@ Sleep is often reported in pieces instead. "Slept 11 to 3, then 5 to 8" is 7
 hours with one waking: leave both times null for a night like that and put
 the total in sleepHours, since the outer bounds would overstate it. A later
 entry that says "got 3 more hours" or "went back to sleep" adds to the
-earlier figure rather than replacing it. Naps go in napHours, never in
-sleepHours or the sleep times. When a nap's start and end are given, its
-times go in napTimes and its length counts toward napHours.
+earlier figure rather than replacing it.
+
+Naps never count towards the night. A nap goes in napStart and napEnd the
+same way, and in napHours when only its length was given. For more than one
+nap in a day, leave the times null and put the total in napHours.
 
 In "sources", list for every metric that is not null the #numbers of the
 entries it came from, and an empty list for every null one.`;
