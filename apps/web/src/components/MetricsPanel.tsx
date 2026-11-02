@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { parseClockTime } from "@journal/shared";
 import type { AiField, DayDTO, DayMetrics } from "@journal/shared";
-import { FIELD_LABELS, missingFields } from "../lib/metrics.js";
+import { FIELD_LABELS, hoursLabel, missingFields } from "../lib/metrics.js";
 
 /** Marks a value the day summary picked up from the entries. */
 export function AiMark() {
@@ -90,6 +91,51 @@ function CommitInput({
   );
 }
 
+/**
+ * A clock time, typed rather than picked: the journal reads times the same
+ * 24-hour way everywhere, which a native time field would hand over to the
+ * device's own AM/PM setting. "2230", "22.30" and "7" all land as HH:MM;
+ * anything unreadable puts back what was there.
+ */
+function ClockInput({
+  value,
+  label,
+  onCommit,
+}: {
+  value: string | null;
+  label: string;
+  onCommit: (value: string | null) => void;
+}) {
+  const server = value ?? "";
+  const [draft, setDraft] = useState(server);
+  useEffect(() => setDraft(server), [server]);
+
+  const commit = () => {
+    const parsed = draft.trim() === "" ? null : parseClockTime(draft);
+    // Unreadable: put the stored time back rather than guess at one.
+    if (draft.trim() !== "" && parsed === null) {
+      setDraft(server);
+      return;
+    }
+    setDraft(parsed ?? "");
+    if (parsed !== value) onCommit(parsed);
+  };
+  return (
+    <input
+      inputMode="numeric"
+      aria-label={label}
+      placeholder="--:--"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+      }}
+      className="w-16 rounded-lg border border-surface1 bg-mantle px-2 py-1 text-center text-sm tabular-nums text-text outline-none focus:border-mauve"
+    />
+  );
+}
+
 function Row({ label, ai, children }: { label: string; ai: boolean; children: ReactNode }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -151,6 +197,8 @@ export function MetricsPanel({
       <Row
         label="sleep"
         ai={
+          ai("sleepStart") ||
+          ai("sleepEnd") ||
           ai("sleepHours") ||
           ai("sleepQuality") ||
           ai("sleepWakings") ||
@@ -158,14 +206,30 @@ export function MetricsPanel({
           ai("napTimes")
         }
       >
-        <CommitInput
-          type="number"
-          step={0.5}
-          value={m.sleepHours}
-          placeholder="h"
-          className="w-16"
-          onCommit={(v) => set("sleepHours", toNumber(v))}
-        />
+        {/* The night is given as the two times it ran between; the hours follow. */}
+        {/* Two inputs, so the words are plain text: each field names itself. */}
+        <span className="flex items-center gap-1 text-xs text-overlay1">
+          from
+          <ClockInput
+            value={m.sleepStart}
+            label="fell asleep at"
+            onCommit={(v) => set("sleepStart", v)}
+          />
+          to
+          <ClockInput value={m.sleepEnd} label="woke at" onCommit={(v) => set("sleepEnd", v)} />
+        </span>
+        {m.sleepHours !== null && (
+          <span
+            className="text-xs text-subtext0"
+            title={
+              m.sleepStart && m.sleepEnd
+                ? "Worked out from the times"
+                : "Hours slept, as the entries gave them"
+            }
+          >
+            {hoursLabel(m.sleepHours)}
+          </span>
+        )}
         <Segmented
           value={m.sleepQuality}
           options={SLEEP_QUALITY}

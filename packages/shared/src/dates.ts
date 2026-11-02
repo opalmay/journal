@@ -92,6 +92,43 @@ export function timeOfDay(ms: number, timeZone: string): string {
   }).format(new Date(ms));
 }
 
+/** A wall-clock time of day in the one form the journal uses, 24-hour `HH:MM`. */
+export const CLOCK_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * A time of day read loosely, as someone types it in a hurry: "22:30",
+ * "2230", "22.30" and "7" all come back as `HH:MM`. Null when it cannot be
+ * read as a time at all, so the field can put back what it had.
+ */
+export function parseClockTime(raw: string): string | null {
+  const parts = raw
+    .trim()
+    .split(/[:.,h\s]+/)
+    .filter(Boolean);
+  if (parts.length === 0 || parts.length > 2 || parts.some((p) => !/^\d{1,4}$/.test(p))) {
+    return null;
+  }
+  const [first, second] = parts as [string, string | undefined];
+  // One number on its own is an hour, or an hour with its minutes run on: 730 is 07:30.
+  const runOn = second === undefined && first.length > 2;
+  const hour = Number(runOn ? first.slice(0, -2) : first);
+  const minute = Number(second ?? (runOn ? first.slice(-2) : 0));
+  if (hour > 23 || minute > 59) return null;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+/**
+ * Hours from one clock time to the next, crossing midnight the way a night
+ * does: 22:30 to 07:00 is 8.5. Null unless both times are given and well
+ * formed, so callers can fall back to a figure recorded on its own.
+ */
+export function hoursBetween(from: string | null, to: string | null): number | null {
+  if (!from || !to || !CLOCK_TIME_RE.test(from) || !CLOCK_TIME_RE.test(to)) return null;
+  const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+  const span = (minutes(to) - minutes(from) + 1440) % 1440;
+  return Math.round((span / 60) * 100) / 100;
+}
+
 /** Normalizes a tag the same way on both client and server. */
 export function normalizeTag(raw: string): string {
   return raw

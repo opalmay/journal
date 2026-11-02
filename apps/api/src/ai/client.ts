@@ -100,10 +100,22 @@ const METRIC_JSON_SCHEMA: Record<AiField, Record<string, unknown>> = {
     { type: "integer", enum: [1, 2, 3, 4, 5] },
     "Energy, 1 exhausted to 5 very high. 'energy high' is 4, 'wiped out' is 1.",
   ),
+  sleepStart: nullable(
+    { type: "string" },
+    "Time the author fell asleep for the night that ended this day, 24-hour HH:mm, " +
+      "e.g. '23:15'. Only for one unbroken night, and only if the time was given or " +
+      "can be worked out.",
+  ),
+  sleepEnd: nullable(
+    { type: "string" },
+    "Time the author got up that morning, 24-hour HH:mm, on the same terms as sleepStart.",
+  ),
   sleepHours: nullable(
     { type: "number" },
     "Total hours slept the night that ended this day, only if durations were given. " +
-      "A night broken by waking up is added up across its parts. Naps are not included.",
+      "A night broken by waking up is added up across its parts. Naps are not included. " +
+      "Leave it null when sleepStart and sleepEnd cover the night, since the hours " +
+      "follow from the pair.",
   ),
   sleepQuality: nullable(
     { type: "string", enum: ["poor", "ok", "good"] },
@@ -179,10 +191,14 @@ missing value is flagged to the author and a wrong one misleads them. Map
 spoken words onto the scales given. If the day contradicts itself, the latest
 entry wins. Sleep means the night that ended on this day.
 
-Sleep is often reported in pieces. "Slept 11 to 3, then 5 to 8" is 7 hours
-with one waking. A later entry that says "got 3 more hours" or "went back to
-sleep" adds to the earlier figure rather than replacing it. Naps go in
-napHours, never in sleepHours. When a nap's start and end are given, its
+A night given as the times it ran between goes in sleepStart and sleepEnd,
+and its length is worked out from the pair, so leave sleepHours null there.
+Sleep is often reported in pieces instead. "Slept 11 to 3, then 5 to 8" is 7
+hours with one waking: leave both times null for a night like that and put
+the total in sleepHours, since the outer bounds would overstate it. A later
+entry that says "got 3 more hours" or "went back to sleep" adds to the
+earlier figure rather than replacing it. Naps go in napHours, never in
+sleepHours or the sleep times. When a nap's start and end are given, its
 times go in napTimes and its length counts toward napHours.
 
 In "sources", list for every metric that is not null the #numbers of the

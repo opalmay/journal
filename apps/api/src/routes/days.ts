@@ -2,10 +2,12 @@ import type { FastifyInstance } from "fastify";
 import {
   DateKeySchema,
   DayRangeQuery,
+  METRIC_FIELDS,
   UpdateDayInput,
   addDays,
   dateKeyFromTimestamp,
 } from "@journal/shared";
+import type { DayMetrics } from "@journal/shared";
 import * as repo from "../db/repo.js";
 import { enqueueDaySummary } from "../ai/jobs.js";
 
@@ -34,21 +36,7 @@ export async function registerDayRoutes(app: FastifyInstance): Promise<void> {
         summary: null,
         note: null,
         mood: null,
-        metrics: {
-          energy: null,
-          sleepHours: null,
-          sleepQuality: null,
-          sleepWakings: null,
-          napHours: null,
-          napTimes: null,
-          appetite: null,
-          social: null,
-          cycleDay: null,
-          caffeine: null,
-          alcohol: null,
-          exercise: null,
-          intake: null,
-        },
+        metrics: Object.fromEntries(METRIC_FIELDS.map((f) => [f, null])) as DayMetrics,
         aiFields: [],
         metricSources: {},
         metricsMissing: [],

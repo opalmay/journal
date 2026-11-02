@@ -151,5 +151,47 @@ describe("day metrics", () => {
     expect((await patchDay({ metrics: { energy: 6 } })).statusCode).toBe(400);
     expect((await patchDay({ metrics: { social: "loads" } })).statusCode).toBe(400);
     expect((await patchDay({ metrics: { sleepHours: 7.5, social: "a_lot" } })).statusCode).toBe(200);
+    expect((await patchDay({ metrics: { sleepStart: "10pm" } })).statusCode).toBe(400);
+    expect((await patchDay({ metrics: { sleepEnd: "24:00" } })).statusCode).toBe(400);
+  });
+
+  it("works the hours out from the two sleep times", async () => {
+    await addRecord("x");
+    await patchDay({ metrics: { sleepStart: "22:30", sleepEnd: "07:00" } });
+
+    const day = await getDay();
+    expect(day.metrics).toMatchObject({
+      sleepStart: "22:30",
+      sleepEnd: "07:00",
+      sleepHours: 8.5,
+    });
+
+    // One time on its own leaves the hours to whatever was recorded.
+    await patchDay({ metrics: { sleepEnd: null } });
+    expect((await getDay()).metrics.sleepHours).toBe(null);
+  });
+
+  it("lets the times it extracted stand for the hours", async () => {
+    await addRecord("slept 11 to 7");
+    ctx.summarizer.metrics = { sleepStart: "23:00", sleepEnd: "07:00", sleepHours: null };
+    ctx.summarizer.sources = { sleepStart: [1], sleepEnd: [1] };
+    await summarize();
+
+    const day = await getDay();
+    expect(day.metrics.sleepHours).toBe(8);
+    expect(day.aiFields).toContain("sleepStart");
+    // The hours are the times', so they are neither the summary's own nor missing.
+    expect(day.aiFields).not.toContain("sleepHours");
+    expect(day.metricsMissing).not.toContain("sleepHours");
+  });
+
+  it("keeps the times the user typed ahead of the hours it extracted", async () => {
+    await addRecord("slept 11 to 3, then 5 to 8");
+    await patchDay({ metrics: { sleepStart: "23:00", sleepEnd: "08:00" } });
+    ctx.summarizer.metrics = { sleepHours: 7, sleepWakings: 1 };
+    await summarize();
+
+    const day = await getDay();
+    expect(day.metrics).toMatchObject({ sleepHours: 9, sleepWakings: 1 });
   });
 });
