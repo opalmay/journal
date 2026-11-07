@@ -10,6 +10,7 @@
     "dev": "concurrently -n api,web -c mauve,blue \"npm run -w @journal/api dev\" \"npm run -w @journal/web dev\"",
     "build": "npm run -w @journal/shared build && npm run -w @journal/api build && npm run -w @journal/web build",
     "start": "npm run -w @journal/api start",
+    "deploy": "fly deploy --build-arg GIT_SHA=\"$(git rev-parse --short HEAD)$(git diff --quiet HEAD || echo -dirty)\" --build-arg BUILT_AT=\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"",
     "test": "npm run -w @journal/api test",
     "typecheck": "tsc -b packages/shared apps/api apps/web",
     "db:generate": "npm run -w @journal/api db:generate",

@@ -169,12 +169,26 @@ fly secrets set \
   AUTH_PASSWORD_HASH="$(npm run --silent hash-password -- 'your password')" \
   ANTHROPIC_API_KEY="sk-ant-..."
 
-fly deploy
+npm run deploy
 ```
 
-`fly secrets set` triggers a redeploy on its own, so the first `fly deploy` may
+`fly secrets set` triggers a redeploy on its own, so the first deploy may
 report there is nothing to do. Read the webhook URL off the Settings page once
 you can log in, and point the ring at it.
+
+**Deploy with `npm run deploy`**, not `fly deploy` — it is the same command with
+the current commit and the build time passed in as build args, and `/api/health`
+reports them back, so you can tell what is actually running:
+
+```bash
+curl -s https://your-host/api/health
+# {"ok":true,"commit":"0e0c339","builtAt":"2026-11-07T09:12:03Z"}
+```
+
+A `-dirty` suffix on the commit means that deploy was built from a working tree
+that did not match it. Plain `fly deploy` still works, the commit just reads
+`null` afterwards. The endpoint is public, so it carries those three fields and
+nothing else.
 
 **The volume is the whole journal.** Every deploy replaces the container
 filesystem; anything outside `/data` is gone. Verify it survives a deploy

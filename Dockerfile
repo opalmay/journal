@@ -41,6 +41,14 @@ COPY --from=build /app/apps/web/dist apps/web/dist
 ENV DATA_DIR=/data
 VOLUME ["/data"]
 
+# Stamped by `npm run deploy` so /api/health can report the running commit.
+# Last, and in the runtime stage only: a changing value here must not
+# invalidate the dependency or build layers above it.
+ARG GIT_SHA=""
+ARG BUILT_AT=""
+ENV GIT_SHA=$GIT_SHA
+ENV BUILT_AT=$BUILT_AT
+
 EXPOSE 3000
 # Runs as root so the Fly volume (mounted root-owned) is writable without an
 # entrypoint that chowns and drops privileges. The microVM is the boundary.

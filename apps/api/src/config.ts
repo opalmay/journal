@@ -41,6 +41,10 @@ const EnvSchema = z.object({
   // the database; only the server, and a token for a protected one, live here.
   NTFY_URL: z.string().url().default("https://ntfy.sh"),
   NTFY_TOKEN: z.string().default(""),
+  // Stamped into the image at build time by `npm run deploy`, so a running
+  // instance can say which commit it is. Empty in dev and in tests.
+  GIT_SHA: z.string().default(""),
+  BUILT_AT: z.string().default(""),
 });
 
 export type Config = ReturnType<typeof loadConfig>;

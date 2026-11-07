@@ -128,7 +128,13 @@ export async function buildApp(config: Config, options: BuildOptions = {}): Prom
     return reply.code(500).send({ error: "internal_error" });
   });
 
-  app.get("/api/health", async () => ({ ok: true }));
+  // Public, so this carries only what an uptime probe and a "is my latest
+  // commit live?" check need — never anything out of the journal itself.
+  app.get("/api/health", async () => ({
+    ok: true,
+    commit: config.GIT_SHA || null,
+    builtAt: config.BUILT_AT || null,
+  }));
 
   await registerAuthRoutes(app);
   await registerDayRoutes(app);
