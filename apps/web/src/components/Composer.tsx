@@ -1,7 +1,8 @@
-import { useRef, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Button, ErrorNote } from "./ui.js";
 import { TagInput } from "./TagInput.js";
 import { useCreateRecord, useTags } from "../lib/queries.js";
+import { isEmptyDraft, useDraft } from "../lib/draft.js";
 
 /** `<input type="datetime-local">` wants local wall-clock, not an ISO instant. */
 function toLocalInputValue(ms: number): string {
@@ -10,14 +11,25 @@ function toLocalInputValue(ms: number): string {
 }
 
 export function Composer({ defaultDate }: { defaultDate?: string }) {
-  const [text, setText] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
+  const { draft, setDraft, clearDraft } = useDraft(defaultDate ?? "timeline");
+  const { text, tags, customTime } = draft;
+  const setText = (next: string) => setDraft((current) => ({ ...current, text: next }));
+  const setTags = (next: string[]) => setDraft((current) => ({ ...current, tags: next }));
+  const setCustomTime = (next: string | null) =>
+    setDraft((current) => ({ ...current, customTime: next }));
   const [files, setFiles] = useState<File[]>([]);
-  const [customTime, setCustomTime] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const create = useCreateRecord();
   const { data: knownTags } = useTags();
+
+  // Attachments can't be stored in a draft, so warn before losing them.
+  useEffect(() => {
+    if (files.length === 0) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [files.length]);
 
   const addFiles = (incoming: FileList | null) => {
     if (incoming) setFiles((current) => [...current, ...Array.from(incoming)]);
@@ -40,10 +52,8 @@ export function Composer({ defaultDate }: { defaultDate?: string }) {
     const timestamp = customTime ? new Date(customTime).getTime() : undefined;
 
     const done = () => {
-      setText("");
-      setTags([]);
+      clearDraft();
       setFiles([]);
-      setCustomTime(null);
     };
 
     if (files.length > 0) {
@@ -129,7 +139,9 @@ export function Composer({ defaultDate }: { defaultDate?: string }) {
         />
         <Button onClick={() => fileInput.current?.click()}>Attach</Button>
         {customTime === null && <Button onClick={openTimeControl}>Change time</Button>}
-        <span className="ml-auto text-[11px] text-overlay0">⌘↵</span>
+        <span className="ml-auto text-[11px] text-overlay0">
+          {isEmptyDraft(draft) ? "⌘↵" : "Draft saved · ⌘↵"}
+        </span>
         <Button
           variant="primary"
           onClick={submit}
